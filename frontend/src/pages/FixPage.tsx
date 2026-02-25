@@ -1,28 +1,35 @@
-import { useState } from 'react'
-import { useParams, Link, useNavigate } from 'react-router-dom'
-import { useIssue } from '../hooks/useIssues'
-import { useFixes } from '../hooks/useFixes'
-import RefinementChat from '../components/fix/RefinementChat'
-import type { Fix, IssueWithSnapshot } from '../types'
+import { useState } from 'react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
+import type { Fix, IssueWithSnapshot } from '../types';
+import RefinementChat from '../components/fix/RefinementChat';
+import { useFixes } from '../hooks/useFixes';
+import { useIssue } from '../hooks/useIssues';
 
-const SEVERITY_LABEL = ['Cosmetic', 'Minor', 'Major', 'Serious', 'Catastrophic']
+const SEVERITY_LABEL = [
+  'Cosmetic',
+  'Minor',
+  'Major',
+  'Serious',
+  'Catastrophic',
+];
 
 export default function FixPage() {
-  const { id = '', issueId = '' } = useParams()
-  const navigate = useNavigate()
-  const { data: issue, isLoading } = useIssue(id, issueId)
-  const { data: fixes } = useFixes(id)
-  const [activeFix, setActiveFix] = useState<Fix | null>(null)
+  const { id = '', issueId = '' } = useParams();
+  const navigate = useNavigate();
+  const { data: issue, isLoading } = useIssue(id, issueId);
+  const { data: fixes } = useFixes(id);
+  const [activeFix, setActiveFix] = useState<Fix | null>(null);
 
-  const existingFix = fixes?.filter(f => f.issueId === issueId).at(-1) ?? null
-  const displayFix = activeFix ?? existingFix
+  const existingFix =
+    fixes?.filter((f) => f.issueId === issueId).at(-1) ?? null;
+  const displayFix = activeFix ?? existingFix;
 
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center text-gray-400">
         Loading…
       </div>
-    )
+    );
   }
 
   if (!issue) {
@@ -30,10 +37,10 @@ export default function FixPage() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center text-gray-400">
         Issue not found.
       </div>
-    )
+    );
   }
 
-  const snap = (issue as IssueWithSnapshot).snapshot
+  const snap = (issue as IssueWithSnapshot).snapshot;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -72,11 +79,15 @@ export default function FixPage() {
               </p>
               <p className="text-gray-500">
                 <span className="font-medium text-gray-600">Element:</span>{' '}
-                <code className="text-xs bg-gray-50 px-1.5 py-0.5 rounded">{issue.element}</code>
+                <code className="text-xs bg-gray-50 px-1.5 py-0.5 rounded">
+                  {issue.element}
+                </code>
               </p>
               <p className="text-gray-700">{issue.reason}</p>
               <div className="bg-blue-50 border border-blue-100 rounded-lg p-3">
-                <p className="text-xs font-medium text-blue-600 mb-1">Suggested fix</p>
+                <p className="text-xs font-medium text-blue-600 mb-1">
+                  Suggested fix
+                </p>
                 <p className="text-sm text-blue-800">{issue.fix}</p>
               </div>
             </div>
@@ -84,7 +95,9 @@ export default function FixPage() {
 
           {/* Chat */}
           <div className="bg-white border border-gray-200 rounded-xl p-5">
-            <h3 className="text-sm font-semibold text-gray-700 mb-4">Refinement Chat</h3>
+            <h3 className="text-sm font-semibold text-gray-700 mb-4">
+              Refinement Chat
+            </h3>
             <RefinementChat
               key={existingFix?.id ?? 'new'}
               experimentId={id}
@@ -133,11 +146,13 @@ export default function FixPage() {
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
                 Agent Reasoning
               </p>
-              <p className="text-sm text-gray-600 leading-relaxed">{snap.reasoning}</p>
+              <p className="text-sm text-gray-600 leading-relaxed">
+                {snap.reasoning}
+              </p>
             </div>
           )}
         </div>
       </div>
     </div>
-  )
+  );
 }

@@ -1,8 +1,8 @@
-import type { EvaluationResult, Fix } from '../../types'
+import type { EvaluationResult, Fix } from '../../types';
 
 interface DiffReportProps {
-  evaluation: EvaluationResult
-  fix: Fix
+  evaluation: EvaluationResult;
+  fix: Fix;
 }
 
 export default function DiffReport({ evaluation, fix }: DiffReportProps) {
@@ -13,17 +13,25 @@ export default function DiffReport({ evaluation, fix }: DiffReportProps) {
       {/* Before / After actions */}
       <div className="grid grid-cols-2 gap-4">
         <div className="bg-gray-50 rounded-lg p-3">
-          <p className="text-xs font-medium text-gray-500 mb-2">Original action</p>
+          <p className="text-xs font-medium text-gray-500 mb-2">
+            Original action
+          </p>
           <code className="text-xs text-gray-700">
             {evaluation.beforeAction.type}
-            {evaluation.beforeAction.selector ? ` ${evaluation.beforeAction.selector}` : ''}
+            {evaluation.beforeAction.selector
+              ? ` ${evaluation.beforeAction.selector}`
+              : ''}
           </code>
         </div>
         <div className="bg-blue-50 rounded-lg p-3">
-          <p className="text-xs font-medium text-blue-600 mb-2">Updated action</p>
+          <p className="text-xs font-medium text-blue-600 mb-2">
+            Updated action
+          </p>
           <code className="text-xs text-gray-700">
             {evaluation.afterAction.type}
-            {evaluation.afterAction.selector ? ` ${evaluation.afterAction.selector}` : ''}
+            {evaluation.afterAction.selector
+              ? ` ${evaluation.afterAction.selector}`
+              : ''}
           </code>
         </div>
       </div>
@@ -66,19 +74,24 @@ export default function DiffReport({ evaluation, fix }: DiffReportProps) {
           </p>
           <div className="space-y-1">
             {fix.patches.map((p, i) => (
-              <div key={i} className="flex items-start gap-2 text-xs text-gray-600">
+              <div
+                key={i}
+                className="flex items-start gap-2 text-xs text-gray-600"
+              >
                 <code className="bg-gray-100 px-1.5 py-0.5 rounded text-gray-700 shrink-0">
                   {p.action}
                 </code>
                 <code className="text-gray-500">{p.selector}</code>
-                <span className="text-gray-400 ml-auto shrink-0">{p.rationale}</span>
+                <span className="text-gray-400 ml-auto shrink-0">
+                  {p.rationale}
+                </span>
               </div>
             ))}
           </div>
         </div>
       )}
     </div>
-  )
+  );
 }
 
 function ResultRow({
@@ -86,11 +99,11 @@ function ResultRow({
   label,
   description,
 }: {
-  ok: boolean | null
-  label: string
-  description: string
+  ok: boolean | null;
+  label: string;
+  description: string;
 }) {
-  const icon = ok === true ? '✅' : ok === false ? '❌' : '❓'
+  const icon = ok === true ? '✅' : ok === false ? '❌' : '❓';
   return (
     <div className="flex items-start gap-2">
       <span className="text-base leading-none mt-0.5">{icon}</span>
@@ -99,5 +112,5 @@ function ResultRow({
         <p className="text-xs text-gray-500 mt-0.5">{description}</p>
       </div>
     </div>
-  )
+  );
 }

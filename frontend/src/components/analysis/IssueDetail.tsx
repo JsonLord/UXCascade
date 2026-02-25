@@ -1,12 +1,18 @@
-import { Link } from 'react-router-dom'
-import type { Issue } from '../../types'
+import { Link } from 'react-router-dom';
+import type { Issue } from '../../types';
 
 interface IssueDetailProps {
-  issue: Issue
-  experimentId: string
+  issue: Issue;
+  experimentId: string;
 }
 
-const SEVERITY_LABEL = ['Cosmetic', 'Minor', 'Major', 'Serious', 'Catastrophic']
+const SEVERITY_LABEL = [
+  'Cosmetic',
+  'Minor',
+  'Major',
+  'Serious',
+  'Catastrophic',
+];
 
 export default function IssueDetail({ issue, experimentId }: IssueDetailProps) {
   return (
@@ -14,7 +20,9 @@ export default function IssueDetail({ issue, experimentId }: IssueDetailProps) {
       <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-4">
         <div>
           <div className="flex items-center gap-2 mb-2">
-            <span className="text-xs font-mono text-gray-400">{issue.uptCodes.join(', ')}</span>
+            <span className="text-xs font-mono text-gray-400">
+              {issue.uptCodes.join(', ')}
+            </span>
             <span className="text-sm font-semibold text-gray-800 capitalize">
               {issue.type.replace(/_/g, ' ')}
             </span>
@@ -64,5 +72,5 @@ export default function IssueDetail({ issue, experimentId }: IssueDetailProps) {
         Fix This Issue →
       </Link>
     </div>
-  )
+  );
 }

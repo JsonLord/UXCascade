@@ -5,13 +5,13 @@ import uuid as _uuid
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.infrastructure.db import models
 from app.domain.entities.experiment import AgentRun
 from app.domain.entities.snapshot import EventSnapshot
 from app.domain.repositories.agent_run_repository import IAgentRunRepository
 from app.domain.value_objects.action import Action, TabMetadata
 from app.domain.value_objects.enums import RunStatus
 from app.domain.value_objects.persona import Persona
+from app.infrastructure.db import models
 
 
 def _snapshot_row_to_entity(row: models.EventSnapshot) -> EventSnapshot:

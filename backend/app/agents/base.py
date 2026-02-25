@@ -23,6 +23,7 @@ class BaseAgent(ABC):
   def _get_client(cls) -> AsyncAnthropic:
     if cls._client is None:
       from app.core.config import settings
+
       cls._client = AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
     return cls._client
 

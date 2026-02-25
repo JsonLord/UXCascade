@@ -511,9 +511,7 @@ async def create_evaluation(
   return evaluation
 
 
-async def get_issue_by_id(
-  session: AsyncSession, issue_id: str
-) -> models.Issue | None:
+async def get_issue_by_id(session: AsyncSession, issue_id: str) -> models.Issue | None:
   return (
     await session.execute(select(models.Issue).where(models.Issue.id == issue_id))
   ).scalar_one_or_none()
@@ -543,9 +541,7 @@ async def get_journeys(
   run_ids = (
     (
       await session.execute(
-        select(models.AgentRun.id).where(
-          models.AgentRun.experiment_id == experiment_id
-        )
+        select(models.AgentRun.id).where(models.AgentRun.experiment_id == experiment_id)
       )
     )
     .scalars()
@@ -556,23 +552,20 @@ async def get_journeys(
 
   # Fetch EventSnapshots ordered by run and step
   rows = (
-    (
-      await session.execute(
-        select(
-          models.EventSnapshot.agent_run_id,
-          models.EventSnapshot.step,
-          models.EventSnapshot.tab_metadata,
-          models.EventSnapshot.action,
-        )
-        .where(models.EventSnapshot.agent_run_id.in_(run_ids))
-        .order_by(
-          models.EventSnapshot.agent_run_id,
-          models.EventSnapshot.step,
-        )
+    await session.execute(
+      select(
+        models.EventSnapshot.agent_run_id,
+        models.EventSnapshot.step,
+        models.EventSnapshot.tab_metadata,
+        models.EventSnapshot.action,
+      )
+      .where(models.EventSnapshot.agent_run_id.in_(run_ids))
+      .order_by(
+        models.EventSnapshot.agent_run_id,
+        models.EventSnapshot.step,
       )
     )
-    .all()
-  )
+  ).all()
 
   if mode == "goal_steps":
     # Use action type as node and aggregate transitions

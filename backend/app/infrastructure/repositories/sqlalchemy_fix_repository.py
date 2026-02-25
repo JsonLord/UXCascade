@@ -5,16 +5,14 @@ import uuid as _uuid
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.infrastructure.db import models
 from app.domain.entities.fix import EvaluationResult, Fix
 from app.domain.repositories.fix_repository import IFixRepository
 from app.domain.value_objects.action import Action, HtmlPatch
 from app.domain.value_objects.enums import PatchAction
+from app.infrastructure.db import models
 
 
-async def _load_patches(
-  session: AsyncSession, fix_id: _uuid.UUID
-) -> list[HtmlPatch]:
+async def _load_patches(session: AsyncSession, fix_id: _uuid.UUID) -> list[HtmlPatch]:
   rows = (
     (
       await session.execute(
@@ -85,9 +83,7 @@ class SQLAlchemyFixRepository(IFixRepository):
   async def save_fix(self, fix: Fix) -> None:
     fix_id = _uuid.UUID(fix.id)
     row = (
-      await self._session.execute(
-        select(models.Fix).where(models.Fix.id == fix_id)
-      )
+      await self._session.execute(select(models.Fix).where(models.Fix.id == fix_id))
     ).scalar_one_or_none()
 
     if row is None:
@@ -129,9 +125,7 @@ class SQLAlchemyFixRepository(IFixRepository):
   async def find_fix_by_id(self, fix_id: str) -> Fix | None:
     fid = _uuid.UUID(fix_id)
     row = (
-      await self._session.execute(
-        select(models.Fix).where(models.Fix.id == fid)
-      )
+      await self._session.execute(select(models.Fix).where(models.Fix.id == fid))
     ).scalar_one_or_none()
     if row is None:
       return None
@@ -185,9 +179,7 @@ class SQLAlchemyFixRepository(IFixRepository):
     rows = (
       (
         await self._session.execute(
-          select(models.EvaluationResult).where(
-            models.EvaluationResult.fix_id == fid
-          )
+          select(models.EvaluationResult).where(models.EvaluationResult.fix_id == fid)
         )
       )
       .scalars()

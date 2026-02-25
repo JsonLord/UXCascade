@@ -68,7 +68,8 @@ class StorageService:
       return ""
     try:
       png_bytes = (
-        annotate_screenshot(screenshot_b64, elements) if elements
+        annotate_screenshot(screenshot_b64, elements)
+        if elements
         else base64.b64decode(screenshot_b64)
       )
       key = f"steps/{uuid.uuid4()}.png"
@@ -129,6 +130,7 @@ class StorageService:
 @lru_cache(maxsize=1)
 def get_storage_service() -> StorageService:
   from app.core.config import settings
+
   return StorageService(
     endpoint=settings.MINIO_ENDPOINT,
     access_key=settings.MINIO_ACCESS_KEY,
@@ -160,11 +162,11 @@ def _load_font(size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
 
 # Color palette: color-coded by element type
 _TAG_COLORS: dict[str, tuple[int, int, int]] = {
-  "button": (59, 130, 246),   # blue
-  "a":      (16, 185, 129),   # green
-  "input":  (245, 158, 11),   # amber
-  "select": (139, 92, 246),   # purple
-  "textarea": (236, 72, 153), # pink
+  "button": (59, 130, 246),  # blue
+  "a": (16, 185, 129),  # green
+  "input": (245, 158, 11),  # amber
+  "select": (139, 92, 246),  # purple
+  "textarea": (236, 72, 153),  # pink
 }
 _DEFAULT_COLOR = (100, 116, 139)  # slate
 
@@ -227,8 +229,10 @@ def upload_annotated_screenshot(
   Returns an empty string on error so the simulation is not interrupted.
   """
   try:
-    png_bytes = annotate_screenshot(screenshot_b64, elements) if elements else (
-      base64.b64decode(screenshot_b64)
+    png_bytes = (
+      annotate_screenshot(screenshot_b64, elements)
+      if elements
+      else (base64.b64decode(screenshot_b64))
     )
     key = f"steps/{uuid.uuid4()}.png"
     return get_storage_service().upload_png(key, png_bytes)

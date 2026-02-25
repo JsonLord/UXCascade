@@ -2,11 +2,17 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import (
+  APIRouter,
+  BackgroundTasks,
+  Depends,
+  HTTPException,
+  WebSocket,
+  WebSocketDisconnect,
+)
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import schemas
-from app.api.deps import get_experiment_repo
 from app.infrastructure.db.crud import get_experiment
 from app.infrastructure.db.database import async_session, get_session
 from app.infrastructure.ws_manager import ws_manager
@@ -19,7 +25,10 @@ ws_router = APIRouter(tags=["ws"])
 
 # ── POST /experiments/{id}/run ────────────────────────────────────────────────
 
-@router.post("/{experiment_id}/run", status_code=202, response_model=schemas.RunResponse)
+
+@router.post(
+  "/{experiment_id}/run", status_code=202, response_model=schemas.RunResponse
+)
 async def run_experiment(
   experiment_id: str,
   background_tasks: BackgroundTasks,
@@ -137,6 +146,7 @@ async def _simulate_and_annotate(experiment_id: str) -> None:
 
 
 # ── WS /ws/experiments/{id} ───────────────────────────────────────────────────
+
 
 @ws_router.websocket("/{experiment_id}")
 async def ws_experiment(experiment_id: str, websocket: WebSocket) -> None:

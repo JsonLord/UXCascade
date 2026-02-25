@@ -1,23 +1,23 @@
-import { useState, useEffect } from 'react'
-import { useParams, Link } from 'react-router-dom'
-import { useExperiment } from '../hooks/useExperiments'
-import { useGoalSummaries, useTraitDistributions } from '../hooks/useGoals'
-import { useIssues } from '../hooks/useIssues'
-import { useJourneys, useAgentRunSteps } from '../hooks/useJourneys'
-import GoalSummaryList from '../components/analysis/GoalSummaryList'
-import TraitDistributionChart from '../components/analysis/TraitDistributionChart'
-import IssueList from '../components/analysis/IssueList'
-import IssueDetail from '../components/analysis/IssueDetail'
-import SankeyDiagram from '../components/journey/SankeyDiagram'
-import AgentRunTimeline from '../components/journey/AgentRunTimeline'
-import type { Issue } from '../types'
+import { useState, useEffect } from 'react';
+import { useParams, Link } from 'react-router-dom';
+import type { Issue } from '../types';
+import GoalSummaryList from '../components/analysis/GoalSummaryList';
+import IssueDetail from '../components/analysis/IssueDetail';
+import IssueList from '../components/analysis/IssueList';
+import TraitDistributionChart from '../components/analysis/TraitDistributionChart';
+import AgentRunTimeline from '../components/journey/AgentRunTimeline';
+import SankeyDiagram from '../components/journey/SankeyDiagram';
+import { useExperiment } from '../hooks/useExperiments';
+import { useGoalSummaries, useTraitDistributions } from '../hooks/useGoals';
+import { useIssues } from '../hooks/useIssues';
+import { useJourneys, useAgentRunSteps } from '../hooks/useJourneys';
 
-type Tab = 'goals' | 'traits' | 'journey'
-type JourneySubTab = 'flow' | 'timeline'
-type TraitMode = 'trait-centric' | 'single-persona'
+type Tab = 'goals' | 'traits' | 'journey';
+type JourneySubTab = 'flow' | 'timeline';
+type TraitMode = 'trait-centric' | 'single-persona';
 
 interface AnalysisPageProps {
-  initialTab?: Tab
+  initialTab?: Tab;
 }
 
 const STATUS_COLOR: Record<string, string> = {
@@ -26,36 +26,38 @@ const STATUS_COLOR: Record<string, string> = {
   annotating: 'bg-yellow-100 text-yellow-700 animate-pulse',
   completed: 'bg-green-100 text-green-700',
   failed: 'bg-red-100 text-red-700',
-}
+};
 
-export default function AnalysisPage({ initialTab = 'goals' }: AnalysisPageProps) {
-  const { id = '' } = useParams()
-  const [activeTab, setActiveTab] = useState<Tab>(initialTab)
-  const [selectedGoal, setSelectedGoal] = useState<string | undefined>()
-  const [traitMode, setTraitMode] = useState<TraitMode>('trait-centric')
-  const [selectedIssue, setSelectedIssue] = useState<Issue | undefined>()
-  const [journeySubTab, setJourneySubTab] = useState<JourneySubTab>('timeline')
+export default function AnalysisPage({
+  initialTab = 'goals',
+}: AnalysisPageProps) {
+  const { id = '' } = useParams();
+  const [activeTab, setActiveTab] = useState<Tab>(initialTab);
+  const [selectedGoal, setSelectedGoal] = useState<string | undefined>();
+  const [traitMode, setTraitMode] = useState<TraitMode>('trait-centric');
+  const [selectedIssue, setSelectedIssue] = useState<Issue | undefined>();
+  const [journeySubTab, setJourneySubTab] = useState<JourneySubTab>('timeline');
 
-  const { data: experiment, isLoading: expLoading } = useExperiment(id)
-  const { data: goals, isLoading: goalsLoading } = useGoalSummaries(id)
+  const { data: experiment, isLoading: expLoading } = useExperiment(id);
+  const { data: goals, isLoading: goalsLoading } = useGoalSummaries(id);
 
   // Auto-select the first goal on initial load
   useEffect(() => {
     if (!selectedGoal && goals && goals.length > 0) {
-      setSelectedGoal(goals[0].goal)
+      setSelectedGoal(goals[0].goal);
     }
-  }, [goals, selectedGoal])
-  const { data: distributions } = useTraitDistributions(id, selectedGoal ?? '')
-  const { data: issues } = useIssues(id, selectedGoal)
-  const { data: journeyData } = useJourneys(id)
-  const { data: agentRuns } = useAgentRunSteps(id)
+  }, [goals, selectedGoal]);
+  const { data: distributions } = useTraitDistributions(id, selectedGoal ?? '');
+  const { data: issues } = useIssues(id, selectedGoal);
+  const { data: journeyData } = useJourneys(id);
+  const { data: agentRuns } = useAgentRunSteps(id);
 
   if (expLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center text-gray-400">
         Loading…
       </div>
-    )
+    );
   }
 
   if (!experiment) {
@@ -63,14 +65,14 @@ export default function AnalysisPage({ initialTab = 'goals' }: AnalysisPageProps
       <div className="min-h-screen bg-gray-50 flex items-center justify-center text-gray-400">
         Experiment not found.
       </div>
-    )
+    );
   }
 
   const tabs: { id: Tab; label: string }[] = [
     { id: 'goals', label: 'Goals & Outcomes' },
     { id: 'traits', label: 'Trait Analysis' },
     { id: 'journey', label: 'Agent Journey' },
-  ]
+  ];
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -84,8 +86,12 @@ export default function AnalysisPage({ initialTab = 'goals' }: AnalysisPageProps
           </div>
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-lg font-bold text-gray-900">{experiment.name}</h1>
-              <p className="text-sm text-gray-400 mt-0.5">{experiment.targetUrl}</p>
+              <h1 className="text-lg font-bold text-gray-900">
+                {experiment.name}
+              </h1>
+              <p className="text-sm text-gray-400 mt-0.5">
+                {experiment.targetUrl}
+              </p>
             </div>
             <span
               className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${STATUS_COLOR[experiment.status] ?? ''}`}
@@ -100,10 +106,11 @@ export default function AnalysisPage({ initialTab = 'goals' }: AnalysisPageProps
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${activeTab === tab.id
+                className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
+                  activeTab === tab.id
                     ? 'bg-gray-50 border border-b-gray-50 border-gray-200 text-blue-600'
                     : 'text-gray-500 hover:text-gray-700'
-                  }`}
+                }`}
               >
                 {tab.label}
               </button>
@@ -118,14 +125,16 @@ export default function AnalysisPage({ initialTab = 'goals' }: AnalysisPageProps
         {activeTab === 'goals' && (
           <div>
             {goalsLoading ? (
-              <div className="text-center py-10 text-gray-400">Loading goals…</div>
+              <div className="text-center py-10 text-gray-400">
+                Loading goals…
+              </div>
             ) : goals && goals.length > 0 ? (
               <GoalSummaryList
                 goals={goals}
                 selectedGoal={selectedGoal}
                 onSelectGoal={(goal) => {
-                  setSelectedGoal(goal)
-                  setActiveTab('traits')
+                  setSelectedGoal(goal);
+                  setActiveTab('traits');
                 }}
               />
             ) : (
@@ -152,10 +161,11 @@ export default function AnalysisPage({ initialTab = 'goals' }: AnalysisPageProps
                     <button
                       key={g.goal}
                       onClick={() => setSelectedGoal(g.goal)}
-                      className={`w-full text-left text-sm px-3 py-2 rounded-lg transition-colors ${selectedGoal === g.goal
+                      className={`w-full text-left text-sm px-3 py-2 rounded-lg transition-colors ${
+                        selectedGoal === g.goal
                           ? 'bg-blue-600 text-white'
                           : 'text-gray-700 hover:bg-gray-100'
-                        }`}
+                      }`}
                     >
                       <span className="line-clamp-2">{g.goal}</span>
                     </button>
@@ -172,12 +182,15 @@ export default function AnalysisPage({ initialTab = 'goals' }: AnalysisPageProps
                     <button
                       key={m}
                       onClick={() => setTraitMode(m)}
-                      className={`flex-1 text-xs px-2 py-1.5 rounded border transition-colors ${traitMode === m
+                      className={`flex-1 text-xs px-2 py-1.5 rounded border transition-colors ${
+                        traitMode === m
                           ? 'border-blue-600 text-blue-600 bg-blue-50'
                           : 'border-gray-200 text-gray-500 hover:border-gray-300'
-                        }`}
+                      }`}
                     >
-                      {m === 'trait-centric' ? 'Trait Centric' : 'Single Persona'}
+                      {m === 'trait-centric'
+                        ? 'Trait Centric'
+                        : 'Single Persona'}
                     </button>
                   ))}
                 </div>
@@ -187,10 +200,15 @@ export default function AnalysisPage({ initialTab = 'goals' }: AnalysisPageProps
             {/* Center: Chart */}
             <div className="lg:col-span-2 bg-white border border-gray-200 rounded-xl p-5">
               {distributions && distributions.length > 0 ? (
-                <TraitDistributionChart distributions={distributions} mode={traitMode} />
+                <TraitDistributionChart
+                  distributions={distributions}
+                  mode={traitMode}
+                />
               ) : (
                 <div className="flex items-center justify-center h-40 text-sm text-gray-400">
-                  {selectedGoal ? 'No distribution data.' : 'Select a goal to view trait analysis.'}
+                  {selectedGoal
+                    ? 'No distribution data.'
+                    : 'Select a goal to view trait analysis.'}
                 </div>
               )}
             </div>
@@ -227,17 +245,18 @@ export default function AnalysisPage({ initialTab = 'goals' }: AnalysisPageProps
           <div className="space-y-4">
             {/* Sub-tab toggle */}
             <div className="flex gap-2">
-              {([
+              {[
                 { id: 'timeline' as const, label: 'Step Timeline' },
                 { id: 'flow' as const, label: 'Navigation Flow' },
-              ]).map(sub => (
+              ].map((sub) => (
                 <button
                   key={sub.id}
                   onClick={() => setJourneySubTab(sub.id)}
-                  className={`px-4 py-1.5 text-sm rounded-lg border transition-colors ${journeySubTab === sub.id
+                  className={`px-4 py-1.5 text-sm rounded-lg border transition-colors ${
+                    journeySubTab === sub.id
                       ? 'border-blue-500 bg-blue-50 text-blue-600 font-medium'
                       : 'border-gray-200 text-gray-500 hover:border-gray-300'
-                    }`}
+                  }`}
                 >
                   {sub.label}
                 </button>
@@ -249,7 +268,7 @@ export default function AnalysisPage({ initialTab = 'goals' }: AnalysisPageProps
                 <h3 className="text-sm font-semibold text-gray-700 mb-4">
                   Agent Navigation Paths
                 </h3>
-                <SankeyDiagram data={journeyData} onNodeClick={() => { }} />
+                <SankeyDiagram data={journeyData} onNodeClick={() => {}} />
               </div>
             )}
 
@@ -262,5 +281,5 @@ export default function AnalysisPage({ initialTab = 'goals' }: AnalysisPageProps
         )}
       </div>
     </div>
-  )
+  );
 }

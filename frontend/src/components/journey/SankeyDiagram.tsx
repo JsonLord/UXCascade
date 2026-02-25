@@ -1,21 +1,24 @@
-import type { JourneyData } from '../../types'
+import type { JourneyData } from '../../types';
 
 interface SankeyDiagramProps {
-  data: JourneyData | undefined
-  onNodeClick: (nodeId: string) => void
+  data: JourneyData | undefined;
+  onNodeClick: (nodeId: string) => void;
 }
 
 // Lightweight placeholder — full D3 Sankey implementation is a follow-up task
-export default function SankeyDiagram({ data, onNodeClick }: SankeyDiagramProps) {
+export default function SankeyDiagram({
+  data,
+  onNodeClick,
+}: SankeyDiagramProps) {
   if (!data || data.links.length === 0) {
     return (
       <div className="flex items-center justify-center h-40 text-sm text-gray-400">
         No navigation data available.
       </div>
-    )
+    );
   }
 
-  const nodeLabel = Object.fromEntries(data.nodes.map(n => [n.id, n.label]))
+  const nodeLabel = Object.fromEntries(data.nodes.map((n) => [n.id, n.label]));
 
   return (
     <div className="space-y-2">
@@ -33,7 +36,7 @@ export default function SankeyDiagram({ data, onNodeClick }: SankeyDiagramProps)
               .slice()
               .sort((a, b) => b.value - a.value)
               .map((link) => {
-                const key = `${link.source}→${link.target}`
+                const key = `${link.source}→${link.target}`;
                 return (
                   <tr
                     key={key}
@@ -52,7 +55,7 @@ export default function SankeyDiagram({ data, onNodeClick }: SankeyDiagramProps)
                       </span>
                     </td>
                   </tr>
-                )
+                );
               })}
           </tbody>
         </table>
@@ -62,5 +65,5 @@ export default function SankeyDiagram({ data, onNodeClick }: SankeyDiagramProps)
         Full Sankey diagram visualization coming soon.
       </p>
     </div>
-  )
+  );
 }

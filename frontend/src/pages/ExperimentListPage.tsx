@@ -1,6 +1,6 @@
-import { Link } from 'react-router-dom'
-import { useExperiments } from '../hooks/useExperiments'
-import type { ExperimentStatus } from '../types'
+import { Link } from 'react-router-dom';
+import type { ExperimentStatus } from '../types';
+import { useExperiments } from '../hooks/useExperiments';
 
 const STATUS_LABEL: Record<ExperimentStatus, string> = {
   created: 'Created',
@@ -8,7 +8,7 @@ const STATUS_LABEL: Record<ExperimentStatus, string> = {
   annotating: 'Annotating',
   completed: 'Completed',
   failed: 'Failed',
-}
+};
 
 const STATUS_COLOR: Record<ExperimentStatus, string> = {
   created: 'bg-gray-100 text-gray-600',
@@ -16,10 +16,10 @@ const STATUS_COLOR: Record<ExperimentStatus, string> = {
   annotating: 'bg-yellow-100 text-yellow-700',
   completed: 'bg-green-100 text-green-700',
   failed: 'bg-red-100 text-red-700',
-}
+};
 
 export default function ExperimentListPage() {
-  const { data: experiments, isLoading, isError } = useExperiments()
+  const { data: experiments, isLoading, isError } = useExperiments();
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -27,7 +27,9 @@ export default function ExperimentListPage() {
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">UXCascade</h1>
-            <p className="text-sm text-gray-500 mt-1">Simulated usability analysis</p>
+            <p className="text-sm text-gray-500 mt-1">
+              Simulated usability analysis
+            </p>
           </div>
           <Link
             to="/experiments/new"
@@ -38,11 +40,15 @@ export default function ExperimentListPage() {
         </div>
 
         {isLoading && (
-          <div className="text-center py-20 text-gray-400">Loading experiments…</div>
+          <div className="text-center py-20 text-gray-400">
+            Loading experiments…
+          </div>
         )}
 
         {isError && (
-          <div className="text-center py-20 text-red-500">Failed to load experiments.</div>
+          <div className="text-center py-20 text-red-500">
+            Failed to load experiments.
+          </div>
         )}
 
         {experiments && experiments.length === 0 && (
@@ -68,14 +74,18 @@ export default function ExperimentListPage() {
                 <div className="flex items-start justify-between">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-3">
-                      <span className="font-medium text-gray-900 truncate">{exp.name}</span>
+                      <span className="font-medium text-gray-900 truncate">
+                        {exp.name}
+                      </span>
                       <span
                         className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${STATUS_COLOR[exp.status]}`}
                       >
                         {STATUS_LABEL[exp.status]}
                       </span>
                     </div>
-                    <p className="text-sm text-gray-400 mt-1 truncate">{exp.targetUrl}</p>
+                    <p className="text-sm text-gray-400 mt-1 truncate">
+                      {exp.targetUrl}
+                    </p>
                   </div>
                   <div className="flex items-center gap-6 text-sm text-gray-500 ml-6 shrink-0">
                     <span>{exp.agentCount ?? 0} agents</span>
@@ -88,5 +98,5 @@ export default function ExperimentListPage() {
         )}
       </div>
     </div>
-  )
+  );
 }

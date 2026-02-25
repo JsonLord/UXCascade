@@ -1,19 +1,19 @@
 interface GoalInputProps {
-  value: string[]
-  onChange: (goals: string[]) => void
+  value: string[];
+  onChange: (goals: string[]) => void;
 }
 
 export default function GoalInput({ value, onChange }: GoalInputProps) {
   function update(index: number, text: string) {
-    onChange(value.map((g, i) => (i === index ? text : g)))
+    onChange(value.map((g, i) => (i === index ? text : g)));
   }
 
   function add() {
-    onChange([...value, ''])
+    onChange([...value, '']);
   }
 
   function remove(index: number) {
-    onChange(value.filter((_, i) => i !== index))
+    onChange(value.filter((_, i) => i !== index));
   }
 
   return (
@@ -47,5 +47,5 @@ export default function GoalInput({ value, onChange }: GoalInputProps) {
         + Add goal
       </button>
     </div>
-  )
+  );
 }

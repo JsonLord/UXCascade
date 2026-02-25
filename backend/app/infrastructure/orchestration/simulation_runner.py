@@ -35,7 +35,9 @@ class SimulationRunner:
   ) -> None:
     self._agent = simulation_agent
     self._experiment_repo = experiment_repo
-    self._run_repo = agent_run_repo  # used for the initial save of pending runs (main session)
+    self._run_repo = (
+      agent_run_repo  # used for the initial save of pending runs (main session)
+    )
     self._session_factory = session_factory
     self._ws_manager = ws_manager
 
@@ -82,7 +84,9 @@ class SimulationRunner:
         has_error = True
         logger.exception(
           "Agent task %d/%d failed for experiment %s",
-          i + 1, len(results), experiment.id,
+          i + 1,
+          len(results),
+          experiment.id,
           exc_info=result,
         )
 
@@ -126,7 +130,10 @@ class SimulationRunner:
       except Exception as exc:
         logger.exception(
           "AgentRun %s failed (experiment=%s goal=%r): %s",
-          agent_run.id, experiment.id, agent_run.goal, exc,
+          agent_run.id,
+          experiment.id,
+          agent_run.goal,
+          exc,
         )
         agent_run.fail()
         raise

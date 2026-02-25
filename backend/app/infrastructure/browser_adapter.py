@@ -5,7 +5,8 @@ import tempfile
 from collections.abc import Awaitable, Callable
 from pathlib import Path
 
-from browser_use import Agent as BrowserUseAgent, ChatAnthropic
+from browser_use import Agent as BrowserUseAgent
+from browser_use import ChatAnthropic
 from browser_use.agent.views import AgentOutput
 from browser_use.browser.views import BrowserStateSummary
 
@@ -44,6 +45,7 @@ class BrowserUseAdapter(BrowserPort):
     so only the base LLM is configured here.
     """
     from app.core.config import settings
+
     return ChatAnthropic(
       model=self._LLM_MODEL,
       temperature=temperature,
@@ -331,9 +333,7 @@ async def _get_page_data(
     if page is None:
       return "", []
 
-    raw_html = await page.evaluate(
-      "() => document.documentElement.outerHTML"
-    )
+    raw_html = await page.evaluate("() => document.documentElement.outerHTML")
 
     elements_json = await page.evaluate("""
       () => Array.from(document.querySelectorAll('[data-index]'))

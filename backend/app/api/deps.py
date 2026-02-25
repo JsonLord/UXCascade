@@ -39,9 +39,7 @@ def get_annotation_repo(session: SessionDep) -> SQLAlchemyAnnotationRepository:
 
 
 def get_refinement_service(
-  agent_run_repo: Annotated[
-    SQLAlchemyAgentRunRepository, Depends(get_agent_run_repo)
-  ],
+  agent_run_repo: Annotated[SQLAlchemyAgentRunRepository, Depends(get_agent_run_repo)],
   fix_repo: Annotated[SQLAlchemyFixRepository, Depends(get_fix_repo)],
 ):
   from app.agents.editor_agent import EditorAgent

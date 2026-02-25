@@ -10,6 +10,7 @@ React application with TypeScript, built using Vite and managed with pnpm.
 - [pnpm](https://pnpm.io/) >= 10
 
 > **Note**: If using nvm, switch to Node 22 before installing:
+>
 > ```bash
 > nvm use 22
 > ```
@@ -36,24 +37,24 @@ The app will be available at [http://localhost:5173](http://localhost:5173).
 
 ## Available Scripts
 
-| Command | Description |
-|---------|-------------|
-| `pnpm dev` | Start development server with HMR |
-| `pnpm build` | Build for production (outputs to `dist/`) |
-| `pnpm preview` | Preview the production build locally |
-| `pnpm lint` | Lint with oxlint |
-| `pnpm format` | Format with oxfmt (indent: 2 spaces) |
-| `pnpm format:check` | Check formatting without writing |
-| `pnpm typecheck` | Type-check with tsgo (TypeScript native) |
+| Command             | Description                               |
+| ------------------- | ----------------------------------------- |
+| `pnpm dev`          | Start development server with HMR         |
+| `pnpm build`        | Build for production (outputs to `dist/`) |
+| `pnpm preview`      | Preview the production build locally      |
+| `pnpm lint`         | Lint with oxlint                          |
+| `pnpm format`       | Format with oxfmt (indent: 2 spaces)      |
+| `pnpm format:check` | Check formatting without writing          |
+| `pnpm typecheck`    | Type-check with tsgo (TypeScript native)  |
 
 ## Environment Variables
 
 Copy `.env.local` and adjust as needed:
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `VITE_API_URL` | `http://localhost:8000` | Backend API base URL |
-| `VITE_WS_URL` | `ws://localhost:8000` | WebSocket base URL (simulation progress) |
+| Variable       | Default                 | Description                              |
+| -------------- | ----------------------- | ---------------------------------------- |
+| `VITE_API_URL` | `http://localhost:8000` | Backend API base URL                     |
+| `VITE_WS_URL`  | `ws://localhost:8000`   | WebSocket base URL (simulation progress) |
 
 ## Tech Stack
 
@@ -70,8 +71,8 @@ Copy `.env.local` and adjust as needed:
 
 ### Dev Tools
 
-| Tool | Package | Description |
-|------|---------|-------------|
-| oxlint | `oxlint` | Fast linter (Rust-based, Oxc project) |
-| oxfmt | `oxfmt` | Fast formatter (alpha, indent: 2 spaces) |
-| tsgo | `@typescript/native-preview` | TypeScript Go-based compiler preview (TS7) |
+| Tool   | Package                      | Description                                |
+| ------ | ---------------------------- | ------------------------------------------ |
+| oxlint | `oxlint`                     | Fast linter (Rust-based, Oxc project)      |
+| oxfmt  | `oxfmt`                      | Fast formatter (alpha, indent: 2 spaces)   |
+| tsgo   | `@typescript/native-preview` | TypeScript Go-based compiler preview (TS7) |

@@ -104,6 +104,7 @@ class FixPatchIn(BaseModel):
 
 class FixCreate(BaseModel):
   """Calls the Editor Agent to automatically generate patches (request body for POST /fixes)."""
+
   issue_id: str
   instruction: str
   snapshot_step: int | None = None  # If omitted, uses Issue.step
@@ -127,6 +128,7 @@ class FixDetail(BaseModel):
 
 class FixAgentResponse(BaseModel):
   """Response for POST /fixes (includes EditorAgent output)."""
+
   id: str
   status: str
   patches: list[FixPatchIn]
@@ -158,12 +160,14 @@ class EvaluationSummary(BaseModel):
 
 # ── Runs ─────────────────────────────────────────────────────────────────────
 
+
 class RunResponse(BaseModel):
   message: str
   experiment_id: str
 
 
 # ── Journeys ─────────────────────────────────────────────────────────────────
+
 
 class JourneyNode(BaseModel):
   id: str

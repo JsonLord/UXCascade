@@ -1,6 +1,6 @@
-import { useQuery } from '@tanstack/react-query'
-import { apiClient } from '../lib/api'
-import type { Issue, IssueWithSnapshot } from '../types'
+import { useQuery } from '@tanstack/react-query';
+import type { Issue, IssueWithSnapshot } from '../types';
+import { apiClient } from '../lib/api';
 
 export function useIssues(experimentId: string, goal?: string) {
   return useQuery({
@@ -10,22 +10,23 @@ export function useIssues(experimentId: string, goal?: string) {
         .get(`/experiments/${experimentId}/issues`, {
           params: goal ? { goal } : undefined,
         })
-        .then(r =>
-          r.data.map((item: any) => ({
-            id: item.id,
-            agentRunId: item.agent_run_id,
-            step: item.step,
-            type: item.type,
-            element: item.element,
-            reason: item.reason,
-            fix: item.fix,
-            uptCodes: item.upt_codes ?? [],
-            uptExplanation: item.upt_explanation ?? '',
-            severity: item.severity,
-          })) as Issue[]
+        .then(
+          (r) =>
+            r.data.map((item: any) => ({
+              id: item.id,
+              agentRunId: item.agent_run_id,
+              step: item.step,
+              type: item.type,
+              element: item.element,
+              reason: item.reason,
+              fix: item.fix,
+              uptCodes: item.upt_codes ?? [],
+              uptExplanation: item.upt_explanation ?? '',
+              severity: item.severity,
+            })) as Issue[]
         ),
     enabled: !!experimentId,
-  })
+  });
 }
 
 export function useIssue(experimentId: string, issueId: string) {
@@ -34,9 +35,9 @@ export function useIssue(experimentId: string, issueId: string) {
     queryFn: () =>
       apiClient
         .get(`/experiments/${experimentId}/issues/${issueId}`)
-        .then(r => {
-          const item = r.data.issue ?? r.data
-          const snap = r.data.snapshot ?? null
+        .then((r) => {
+          const item = r.data.issue ?? r.data;
+          const snap = r.data.snapshot ?? null;
           return {
             id: item.id,
             agentRunId: item.agent_run_id,
@@ -56,8 +57,8 @@ export function useIssue(experimentId: string, issueId: string) {
                   rawHtml: snap.raw_html ?? '',
                 }
               : null,
-          } as IssueWithSnapshot
+          } as IssueWithSnapshot;
         }),
     enabled: !!experimentId && !!issueId,
-  })
+  });
 }

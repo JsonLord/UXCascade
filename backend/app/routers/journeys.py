@@ -28,7 +28,7 @@ async def get_journeys_api(
   data = await get_journeys(session, experiment_id, mode=mode)
   return schemas.JourneyResponse(
     nodes=[schemas.JourneyNode(**n) for n in data["nodes"]],
-    links=[schemas.JourneyLink(**l) for l in data["links"]],
+    links=[schemas.JourneyLink(**link) for link in data["links"]],
   )
 
 

@@ -6,11 +6,11 @@ from typing import Any
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.infrastructure.db import models
 from app.domain.entities.experiment import Experiment
 from app.domain.repositories.experiment_repository import IExperimentRepository
 from app.domain.value_objects.enums import ExperimentStatus
 from app.domain.value_objects.persona import TraitConfig
+from app.infrastructure.db import models
 
 
 def _row_to_entity(

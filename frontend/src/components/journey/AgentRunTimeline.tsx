@@ -1,15 +1,15 @@
-import { useState } from 'react'
-import type { AgentRunDetail, AgentRunStep } from '../../types'
+import { useState } from 'react';
+import type { AgentRunDetail, AgentRunStep } from '../../types';
 
 interface AgentRunTimelineProps {
-  runs: AgentRunDetail[]
+  runs: AgentRunDetail[];
 }
 
 const STATUS_COLOR: Record<string, string> = {
   completed: 'bg-green-100 text-green-700',
   running: 'bg-blue-100 text-blue-700',
   failed: 'bg-red-100 text-red-700',
-}
+};
 
 const ACTION_COLOR: Record<string, string> = {
   click: 'bg-blue-100 text-blue-700',
@@ -17,28 +17,28 @@ const ACTION_COLOR: Record<string, string> = {
   navigate: 'bg-teal-100 text-teal-700',
   scroll: 'bg-gray-100 text-gray-600',
   done: 'bg-green-100 text-green-700',
-}
+};
 
 function actionLabel(step: AgentRunStep): string {
-  const t = step.actionType || 'unknown'
-  if (step.actionValue) return `${t}: ${step.actionValue.slice(0, 40)}`
-  return t
+  const t = step.actionType || 'unknown';
+  if (step.actionValue) return `${t}: ${step.actionValue.slice(0, 40)}`;
+  return t;
 }
 
 export default function AgentRunTimeline({ runs }: AgentRunTimelineProps) {
   const [selectedRunId, setSelectedRunId] = useState<string | null>(
     runs.length > 0 ? runs[0].runId : null
-  )
-  const [expandedStep, setExpandedStep] = useState<number | null>(null)
+  );
+  const [expandedStep, setExpandedStep] = useState<number | null>(null);
 
-  const activeRun = runs.find(r => r.runId === selectedRunId) ?? null
+  const activeRun = runs.find((r) => r.runId === selectedRunId) ?? null;
 
   if (runs.length === 0) {
     return (
       <div className="text-center py-10 text-gray-400 text-sm">
         No agent run data available.
       </div>
-    )
+    );
   }
 
   return (
@@ -52,8 +52,8 @@ export default function AgentRunTimeline({ runs }: AgentRunTimelineProps) {
           <button
             key={run.runId}
             onClick={() => {
-              setSelectedRunId(run.runId)
-              setExpandedStep(null)
+              setSelectedRunId(run.runId);
+              setExpandedStep(null);
             }}
             className={`w-full text-left rounded-lg border p-3 transition-all ${
               selectedRunId === run.runId
@@ -62,25 +62,33 @@ export default function AgentRunTimeline({ runs }: AgentRunTimelineProps) {
             }`}
           >
             <div className="flex items-center gap-2 mb-1">
-              <span className="text-xs font-mono text-gray-400">#{idx + 1}</span>
+              <span className="text-xs font-mono text-gray-400">
+                #{idx + 1}
+              </span>
               <span
                 className={`text-xs px-1.5 py-0.5 rounded font-medium ${STATUS_COLOR[run.status] ?? 'bg-gray-100 text-gray-600'}`}
               >
                 {run.status}
               </span>
             </div>
-            <p className="text-xs text-gray-700 line-clamp-2 leading-snug">{run.goal}</p>
+            <p className="text-xs text-gray-700 line-clamp-2 leading-snug">
+              {run.goal}
+            </p>
             <div className="mt-1.5 flex flex-wrap gap-1">
-              {Object.entries(run.personaTraits).slice(0, 3).map(([k, v]) => (
-                <span
-                  key={k}
-                  className="text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded"
-                >
-                  {k}: {v}
-                </span>
-              ))}
+              {Object.entries(run.personaTraits)
+                .slice(0, 3)
+                .map(([k, v]) => (
+                  <span
+                    key={k}
+                    className="text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded"
+                  >
+                    {k}: {v}
+                  </span>
+                ))}
             </div>
-            <p className="text-xs text-gray-400 mt-1">{run.steps.length} steps</p>
+            <p className="text-xs text-gray-400 mt-1">
+              {run.steps.length} steps
+            </p>
           </button>
         ))}
       </div>
@@ -105,7 +113,9 @@ export default function AgentRunTimeline({ runs }: AgentRunTimelineProps) {
                 <button
                   className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors text-left"
                   onClick={() =>
-                    setExpandedStep(expandedStep === step.step ? null : step.step)
+                    setExpandedStep(
+                      expandedStep === step.step ? null : step.step
+                    )
                   }
                 >
                   <span className="shrink-0 w-7 h-7 rounded-full bg-blue-100 text-blue-700 text-xs font-bold flex items-center justify-center">
@@ -184,5 +194,5 @@ export default function AgentRunTimeline({ runs }: AgentRunTimelineProps) {
         )}
       </div>
     </div>
-  )
+  );
 }

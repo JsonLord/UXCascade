@@ -1,10 +1,10 @@
-import { useRef } from 'react'
-import type { EventSnapshot, HtmlPatch } from '../../types'
+import { useRef } from 'react';
+import type { EventSnapshot, HtmlPatch } from '../../types';
 
 interface SnapshotEditorProps {
-  snapshot: EventSnapshot
-  highlightSelector?: string
-  onPatchApply: (patch: HtmlPatch) => void
+  snapshot: EventSnapshot;
+  highlightSelector?: string;
+  onPatchApply: (patch: HtmlPatch) => void;
 }
 
 export default function SnapshotEditor({
@@ -12,7 +12,7 @@ export default function SnapshotEditor({
   highlightSelector,
   onPatchApply,
 }: SnapshotEditorProps) {
-  const iframeRef = useRef<HTMLIFrameElement>(null)
+  const iframeRef = useRef<HTMLIFrameElement>(null);
 
   // Inject highlight style for the problem element
   const htmlWithHighlight = highlightSelector
@@ -26,7 +26,7 @@ export default function SnapshotEditor({
           }
         </style></head>`
       )
-    : snapshot.rawHtml
+    : snapshot.rawHtml;
 
   function handleApplyTextChange(selector: string, newText: string) {
     onPatchApply({
@@ -35,10 +35,10 @@ export default function SnapshotEditor({
       value: newText,
       name: null,
       rationale: 'Manual text edit via toolbar',
-    })
+    });
   }
 
-  void handleApplyTextChange // used by toolbar (future)
+  void handleApplyTextChange; // used by toolbar (future)
 
   return (
     <div className="space-y-3">
@@ -84,5 +84,5 @@ export default function SnapshotEditor({
         </details>
       )}
     </div>
-  )
+  );
 }

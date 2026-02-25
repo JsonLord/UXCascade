@@ -5,9 +5,14 @@ import uuid as _uuid
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.infrastructure.db import models
-from app.domain.entities.annotation import GoalSummary, Issue, StepAnnotation, TraitDistribution
+from app.domain.entities.annotation import (
+  GoalSummary,
+  Issue,
+  StepAnnotation,
+  TraitDistribution,
+)
 from app.domain.repositories.annotation_repository import IAnnotationRepository
+from app.infrastructure.db import models
 
 
 def _issue_row_to_entity(row: models.Issue) -> Issue:
@@ -190,9 +195,7 @@ class SQLAlchemyAnnotationRepository(IAnnotationRepository):
     rows = (
       (
         await self._session.execute(
-          select(models.GoalSummary).where(
-            models.GoalSummary.experiment_id == exp_id
-          )
+          select(models.GoalSummary).where(models.GoalSummary.experiment_id == exp_id)
         )
       )
       .scalars()

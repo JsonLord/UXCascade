@@ -1,18 +1,18 @@
-import { useState } from 'react'
-import { useCreateFix } from '../../hooks/useFixes'
-import type { Fix } from '../../types'
+import { useState } from 'react';
+import type { Fix } from '../../types';
+import { useCreateFix } from '../../hooks/useFixes';
 
 interface RefinementChatProps {
-  experimentId: string
-  issueId: string
-  snapshotStep: number
-  onFixCreated: (fix: Fix) => void
-  initialFix?: Fix
+  experimentId: string;
+  issueId: string;
+  snapshotStep: number;
+  onFixCreated: (fix: Fix) => void;
+  initialFix?: Fix;
 }
 
 interface ChatMessage {
-  role: 'user' | 'assistant'
-  content: string
+  role: 'user' | 'assistant';
+  content: string;
 }
 
 export default function RefinementChat({
@@ -22,28 +22,28 @@ export default function RefinementChat({
   onFixCreated,
   initialFix,
 }: RefinementChatProps) {
-  const [input, setInput] = useState('')
+  const [input, setInput] = useState('');
   const [messages, setMessages] = useState<ChatMessage[]>(() => {
-    if (!initialFix?.instruction) return []
+    if (!initialFix?.instruction) return [];
     const summary =
       initialFix.status === 'ok'
         ? initialFix.notes
         : initialFix.status === 'ambiguous'
           ? `Ambiguous: ${initialFix.notes}`
-          : `Could not apply: ${initialFix.notes}`
+          : `Could not apply: ${initialFix.notes}`;
     return [
       { role: 'user', content: initialFix.instruction },
       { role: 'assistant', content: summary },
-    ]
-  })
-  const createFix = useCreateFix()
+    ];
+  });
+  const createFix = useCreateFix();
 
   async function handleSend() {
-    const instruction = input.trim()
-    if (!instruction) return
+    const instruction = input.trim();
+    if (!instruction) return;
 
-    setMessages(prev => [...prev, { role: 'user', content: instruction }])
-    setInput('')
+    setMessages((prev) => [...prev, { role: 'user', content: instruction }]);
+    setInput('');
 
     try {
       const fix = await createFix.mutateAsync({
@@ -51,21 +51,22 @@ export default function RefinementChat({
         issueId,
         instruction,
         snapshotStep,
-      })
+      });
 
       const summary =
         fix.status === 'ok'
           ? `Applied ${fix.patches.length} patch(es). ${fix.notes}`
           : fix.status === 'ambiguous'
             ? `Ambiguous: ${fix.notes}`
-            : `Could not apply: ${fix.notes}`
+            : `Could not apply: ${fix.notes}`;
 
-      setMessages(prev => [...prev, { role: 'assistant', content: summary }])
-      onFixCreated(fix)
+      setMessages((prev) => [...prev, { role: 'assistant', content: summary }]);
+      onFixCreated(fix);
     } catch (err: any) {
       const detail: string =
-        err?.response?.data?.detail ?? 'Failed to generate patch. Please try again.'
-      setMessages(prev => [...prev, { role: 'assistant', content: detail }])
+        err?.response?.data?.detail ??
+        'Failed to generate patch. Please try again.';
+      setMessages((prev) => [...prev, { role: 'assistant', content: detail }]);
     }
   }
 
@@ -110,8 +111,8 @@ export default function RefinementChat({
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
-              e.preventDefault()
-              handleSend()
+              e.preventDefault();
+              handleSend();
             }
           }}
           placeholder='e.g. "Move the cart button to a more prominent position"'
@@ -128,5 +129,5 @@ export default function RefinementChat({
         </button>
       </div>
     </div>
-  )
+  );
 }

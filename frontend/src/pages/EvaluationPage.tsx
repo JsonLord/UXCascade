@@ -1,27 +1,27 @@
-import { useParams, Link } from 'react-router-dom'
-import { useIssue } from '../hooks/useIssues'
-import { useFixDetail, useFixes, useRunEvaluation } from '../hooks/useFixes'
-import DiffReport from '../components/evaluation/DiffReport'
+import { useParams, Link } from 'react-router-dom';
+import DiffReport from '../components/evaluation/DiffReport';
+import { useFixDetail, useFixes, useRunEvaluation } from '../hooks/useFixes';
+import { useIssue } from '../hooks/useIssues';
 
 export default function EvaluationPage() {
-  const { id = '', issueId = '' } = useParams()
-  const { data: issue, isLoading: issueLoading } = useIssue(id, issueId)
-  const { data: fixes } = useFixes(id)
-  const runEvaluation = useRunEvaluation()
+  const { id = '', issueId = '' } = useParams();
+  const { data: issue, isLoading: issueLoading } = useIssue(id, issueId);
+  const { data: fixes } = useFixes(id);
+  const runEvaluation = useRunEvaluation();
 
   // Latest fix for this issue
-  const latestFix = fixes?.filter(f => f.issueId === issueId).at(-1)
-  const latestFixId = latestFix?.id ?? ''
-  const { data: fixDetail } = useFixDetail(id, latestFixId)
-  const evaluation = fixDetail?.evaluations?.at(-1)
-  const fixForReport = fixDetail?.fix ?? latestFix
+  const latestFix = fixes?.filter((f) => f.issueId === issueId).at(-1);
+  const latestFixId = latestFix?.id ?? '';
+  const { data: fixDetail } = useFixDetail(id, latestFixId);
+  const evaluation = fixDetail?.evaluations?.at(-1);
+  const fixForReport = fixDetail?.fix ?? latestFix;
 
   if (issueLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center text-gray-400">
         Loading…
       </div>
-    )
+    );
   }
 
   return (
@@ -61,12 +61,14 @@ export default function EvaluationPage() {
                 No evaluation yet
               </h3>
               <p className="text-sm text-gray-500">
-                Run the Preview Agent to re-simulate the patched step and compare before/after behavior.
+                Run the Preview Agent to re-simulate the patched step and
+                compare before/after behavior.
               </p>
             </div>
             {runEvaluation.isError && (
               <p className="text-sm text-red-600">
-                {(runEvaluation.error as any)?.response?.data?.detail ?? 'Evaluation failed.'}
+                {(runEvaluation.error as any)?.response?.data?.detail ??
+                  'Evaluation failed.'}
               </p>
             )}
             <button
@@ -76,7 +78,9 @@ export default function EvaluationPage() {
               disabled={runEvaluation.isPending}
               className="w-full bg-green-600 text-white text-sm font-medium py-2.5 rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors"
             >
-              {runEvaluation.isPending ? 'Running evaluation…' : 'Run Evaluation'}
+              {runEvaluation.isPending
+                ? 'Running evaluation…'
+                : 'Run Evaluation'}
             </button>
           </div>
         )}
@@ -117,5 +121,5 @@ export default function EvaluationPage() {
         </div>
       </div>
     </div>
-  )
+  );
 }
