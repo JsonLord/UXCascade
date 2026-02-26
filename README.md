@@ -5,7 +5,7 @@
 [![arXiv](https://img.shields.io/badge/arXiv-2601.15777-b31b1b.svg)](https://arxiv.org/abs/2601.15777)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-This repository is an implementation of the system described in:
+This repository is an unofficial implementation of the system described in:
 
 > **UXCascade: Scalable Usability Testing with Simulated User Agents**
 > Steffen Holter, Eunyee Koh, Mustafa Doga Dogan, Gromit Yeuk-Yin Chan
@@ -37,6 +37,40 @@ Key components:
 | **Issue Detector** | Extracts structured usability issues from think-aloud traces |
 | **Editor Agent** | Generates DOM-level HTML patches from natural-language instructions |
 | **Preview Agent** | Re-runs one simulation step on the patched HTML to evaluate the fix |
+
+---
+
+## Features
+
+### Experiment Setup
+
+Define the target URL, persona trait dimensions (e.g. age group, tech literacy, device type), and task goals. UXCascade automatically generates all trait combinations and spins up one LLM agent per persona–goal pair, running them in parallel against the live interface.
+
+Each agent navigates the site as that persona, recording every action, screenshot, and reasoning step. The result is a rich, multi-perspective dataset of how different types of users experience the same UI — without recruiting a single human participant.
+
+### Issue Analysis
+
+Filter and triage usability issues by severity (S1–S4) across all agent runs. Each issue includes the affected element, root cause, suggested fix, and UPT taxonomy codes — with a one-click path to the fix workflow.
+
+![Issue Analysis](assets/analysis.png)
+
+### Step-by-Step Agent Journey
+
+Replay any agent's browsing session step by step. Each step shows the agent's on-screen action, annotated reasoning, and behavioral tags — making it easy to spot exactly where and why a user gets stuck.
+
+![Step-by-Step Journey](assets/step_journey.png)
+
+### AI-Powered Fix Generation
+
+Describe a UI change in plain language. The Editor Agent translates the instruction into precise DOM-level patches (CSS selector + action + value) and shows a live preview of the modified interface.
+
+![Fix Generation](assets/fix_issue.png)
+
+### Fix Evaluation
+
+After applying a patch, the Preview Agent re-runs the affected simulation step and produces a Difference Report — comparing the agent's action before and after, and estimating whether the issue was resolved.
+
+![Fix Evaluation](assets/evaluate.png)
 
 ---
 
@@ -76,18 +110,6 @@ Storage uses **PostgreSQL** for structured data and **MinIO** for screenshots.
 
 ---
 
-## Requirements
-
-| Component | Version |
-|---|---|
-| Node.js | >= 20.19 (or 22+) — Node 18 is **not** supported |
-| pnpm | >= 10 |
-| Python | >= 3.13 |
-| uv | >= 0.6 |
-| Docker + Docker Compose | for the recommended setup |
-
----
-
 ## Quick Start (Docker)
 
 The easiest way to get everything running:
@@ -107,7 +129,7 @@ cp backend/.env.sample backend/.env
 Start all services (PostgreSQL, MinIO, backend, frontend):
 
 ```bash
-docker compose up --build
+docker compose up --build -d
 ```
 
 | Service | URL |
