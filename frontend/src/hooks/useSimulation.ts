@@ -14,7 +14,9 @@ export function useRunSimulation(experimentId: string) {
   useEffect(() => {
     if (!experimentId) return;
 
-    const wsUrl = `${import.meta.env.VITE_WS_URL ?? 'ws://localhost:8000'}/ws/experiments/${experimentId}`;
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const defaultWsUrl = `${protocol}//${window.location.host}/api/ws/experiments/${experimentId}`;
+    const wsUrl = import.meta.env.VITE_WS_URL ?? defaultWsUrl;
     const ws = new WebSocket(wsUrl);
 
     ws.onmessage = (e) => {
