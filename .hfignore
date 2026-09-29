@@ -1,0 +1,14 @@
+.git
+.github
+.venv
+backend/.venv
+backend/uxcascade.db
+frontend/node_modules
+frontend/dist
+node_modules
+__pycache__
+*.pyc
+*.pyo
+.env
+.env.local
+assets
