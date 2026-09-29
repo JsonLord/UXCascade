@@ -112,7 +112,7 @@ After applying a patch, the Preview Agent re-runs the affected simulation step a
 │     Refinement Phase        │
 │  Editor Agent → DOM patches │
 │  Preview Agent → re-sim     │
-└─────────────────────────────┘
+└────────────┬────────────────┘
 ```
 
 The frontend is built with **React 19 + TypeScript + Vite**, and the backend with **FastAPI + Python 3.13**.

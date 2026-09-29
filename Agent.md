@@ -4,13 +4,13 @@ This document provides guidelines and instructions for agents maintaining or dep
 
 ## 1. Space Overview
 - **Profile:** `Leon4gr45`
-- **Space:** `rowboat`
-- **Full Identifier:** `Leon4gr45/rowboat`
+- **Space:** `cascade`
+- **Full Identifier:** `Leon4gr45/cascade`
 - **Port:** `7860`
 
 ## 2. Mandatory Endpoints & API Documentation
 - **`/health`**: Returns HTTP 200 `{"status": "ok"}` for Hugging Face health checks.
-- **`/api-docs`**: OpenAPI/Swagger interface listing all backend endpoints (`https://Leon4gr45-rowboat.hf.space/api-docs`).
+- **`/api-docs`**: OpenAPI/Swagger interface listing all backend endpoints (`https://Leon4gr45-cascade.hf.space/api-docs`).
 
 ### Key Endpoints
 - `GET /health` - Health check
@@ -36,15 +36,15 @@ The system supports OpenAI-compatible LLM endpoints:
 To push update to the space using `hf` CLI:
 
 ```bash
-HF_TOKEN="<TOKEN>" hf upload Leon4gr45/rowboat . . --repo-type=space
+HF_TOKEN="<TOKEN>" hf upload Leon4gr45/cascade . . --repo-type=space
 ```
 
 To monitor build logs:
 ```bash
-curl -N -H "Authorization: Bearer <TOKEN>" "https://huggingface.co/api/spaces/Leon4gr45/rowboat/logs/build"
+curl -N -H "Authorization: Bearer <TOKEN>" "https://huggingface.co/api/spaces/Leon4gr45/cascade/logs/build"
 ```
 
 To monitor runtime logs:
 ```bash
-curl -N -H "Authorization: Bearer <TOKEN>" "https://huggingface.co/api/spaces/Leon4gr45/rowboat/logs/run"
+curl -N -H "Authorization: Bearer <TOKEN>" "https://huggingface.co/api/spaces/Leon4gr45/cascade/logs/run"
 ```
