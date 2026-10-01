@@ -3,29 +3,16 @@ from __future__ import annotations
 import re
 from abc import ABC
 
-from anthropic import AsyncAnthropic
+from app.core.llm_provider import LLMProvider
 
 
 class BaseAgent(ABC):
   """
   Base class for all agents that call the LLM directly.
 
-  Conforms to the common conventions described in design/agents/overview.md:
-    - Model: claude-sonnet-4-6
-    - Shares a single async Anthropic client
-    - _call() executes a two-turn prompt with system and user roles
+  Delegates provider detection, client instantiation, and execution
+  to LLMProvider.
   """
-
-  _client: AsyncAnthropic | None = None
-  model: str = "claude-sonnet-4-6"
-
-  @classmethod
-  def _get_client(cls) -> AsyncAnthropic:
-    if cls._client is None:
-      from app.core.config import settings
-
-      cls._client = AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
-    return cls._client
 
   async def _call(
     self,
@@ -35,27 +22,16 @@ class BaseAgent(ABC):
     max_tokens: int = 4096,
   ) -> str:
     """
-    Call the Anthropic API and return the assistant's response text.
-
-    Parameters
-    ----------
-    system:
-        System prompt (defines the agent's role and constraints)
-    user:
-        User content (the concrete input to the agent)
-    temperature:
-        Sampling temperature. Simulation=1.0, Annotation/Refinement=0.0
-    max_tokens:
-        Maximum number of output tokens
+    Call the configured LLM API (OpenAI-compatible or Anthropic) via LLMProvider.
     """
-    response = await self._get_client().messages.create(
-      model=self.model,
-      max_tokens=max_tokens,
-      temperature=temperature,
+    stage = getattr(self, "stage", "direct")
+    return await LLMProvider.call_text_llm(
       system=system,
-      messages=[{"role": "user", "content": user}],
+      user=user,
+      temperature=temperature,
+      max_tokens=max_tokens,
+      stage=stage,
     )
-    return response.content[0].text  # type: ignore[union-attr]
 
   @staticmethod
   def _extract_json(text: str) -> str:

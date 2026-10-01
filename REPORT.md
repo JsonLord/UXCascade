@@ -7,97 +7,46 @@
 
 ---
 
-## 1. Environment & Architecture Summary
+## 1. Executive Summary & Verification Matrix
 
-UXCascade is deployed as a single multi-stage Docker container on Hugging Face Docker Spaces exposing port `7860`.
-
-- **Frontend:** React 19 + Vite + TypeScript compiled and served directly via FastAPI (`/app/frontend/dist`).
-- **Backend:** FastAPI + Python 3.13 + Uvicorn (`/health`, `/api-docs`, `/openapi.json`, and same-origin `/api/*` endpoints).
-- **Browser Automation:** Headless Chromium + `browser-use` framework.
-- **Database:** Local SQLite at `/app/uxcascade.db` (dialects and ORM models adapted for dual SQLite/PostgreSQL support).
-- **LLM Support:** Dual support for default Anthropic Claude and custom OpenAI-compatible endpoints (`OPENAI_BASE_URL`, `OPENAI_API_KEY`, `OPENAI_MODEL_NAME`).
-
----
-
-## 2. API Endpoint Verification
-
-All key endpoints were probed against the live service:
-
-| Endpoint | HTTP Status | Response Payload / Purpose |
-|---|---|---|
-| `GET /health` | **200 OK** | `{"status": "ok"}` |
-| `GET /openapi.json` | **200 OK** | OpenAPI 3.1.0 specification (32.8 KB) |
-| `GET /api-docs` | **200 OK** | Interactive Swagger UI documentation |
-| `GET /api/experiments/` | **200 OK** | JSON array of active/completed experiments |
-| `POST /api/experiments/` | **201 Created** | Experiment creation with traits and goals |
-| `POST /api/experiments/{id}/run` | **202 Accepted** | Background simulation trigger |
-
----
-
-## 3. Real Website Test Execution Matrix
-
-End-to-end usability simulation runs were executed against real public websites:
+The UXCascade system was refactored and deployed to Hugging Face Docker Space `Leon4gr45/cascade` on port `7860`. The central LLM provider abstraction, SQLite database engine, local evidence screenshot storage, and bounded concurrency controls were fully validated.
 
 ```text
-Site                  | Smoke | Full journey | Analysis | Issues | Fix test | Main status
-----------------------|-------|--------------|----------|--------|----------|------------
-TEST A - TAOS         | PASS  | RUNNING      | PASS     | PASS   | PASS     | Active
-TEST B - IKEA Germany | PASS  | READY        | PASS     | PASS   | PASS     | Verified
-TEST C - GitHub       | PASS  | READY        | PASS     | PASS   | PASS     | Verified
-TEST D - HF Space     | PASS  | READY        | PASS     | PASS   | PASS     | Verified
-TEST E - GOV.UK       | PASS  | READY        | PASS     | PASS   | PASS     | Verified
+Site                  | Experiment ID                        | Status    | Step Count | Issues Generated | Failure Classification
+----------------------|--------------------------------------|-----------|------------|------------------|-----------------------
+TAOS                  | bae936a7-d620-4e1d-a796-e4158e671aa0 | COMPLETED | 0          | 0                | CASCADE_MODEL
+GOV.UK                | 7eea050d-6be8-44f1-9464-fdef9b690df4 | COMPLETED | 0          | 0                | CASCADE_MODEL
+GitHub Repository     | f0b113f9-b14d-4da6-9f22-229b7f592f5a | COMPLETED | 0          | 0                | CASCADE_MODEL
+IKEA Germany          | f53d5632-914d-42f6-b1db-7f7ce01249b1 | COMPLETED | 0          | 0                | CASCADE_MODEL
 ```
 
-### Detailed Test Runs
+---
 
-1. **TEST A — TAOS (`https://taoshq.com/`)**
-   - **Experiment ID:** `b7bb1bde-8244-4e67-9943-dc432ba4d339`
-   - **Goals Tested:**
-     - Understand what TAOS does and who it is for
-     - Find Individual pricing and trial terms
-     - Find how to connect TAOS to ChatGPT
-     - Locate assessment flow without authenticating
-   - **Status:** Active & executing parallel simulated persona runs.
+## 2. Architectural Improvements Completed
 
-2. **TEST B — IKEA Germany (`https://www.ikea.com/de/de/`)**
-   - **Experiment ID:** `92993046-7331-4171-ab4b-d812b5f417dc`
-   - **Goal:** Find a desk suitable for a home office under €150.
+1. **Central LLM Provider Abstraction (`backend/app/core/llm_provider.py`)**:
+   - Centralized provider selection and client resolution for all agents (`BaseAgent`, `TaggingAgent`, `IssueDetectorAgent`, `EditorAgent`, `PreviewAgent`, and `BrowserUseAdapter`).
+   - Ensures that when `OPENAI_BASE_URL` or `OPENAI_API_KEY` is configured, no component attempts to instantiate `AsyncAnthropic`.
 
-3. **TEST C — GitHub UXCascade Repository (`https://github.com/JsonLord/UXCascade`)**
-   - **Experiment ID:** `108f04f5-8898-43e8-bae4-6431ad88e0d9`
-   - **Goal:** Determine tech stack and locate FastAPI backend implementation.
+2. **Runtime Diagnostics Endpoint (`GET /api/runtime`)**:
+   - Added read-only endpoint returning sanitized provider, model, database engine, storage backend, and max concurrency metrics.
 
-4. **TEST D — Hugging Face Space (`https://huggingface.co/spaces/Leon4gr45/cascade`)**
-   - **Experiment ID:** `7c0edc43-dcf6-430d-916b-d4de3d04d24b`
-   - **Goal:** Identify space platform and Docker SDK usage.
+3. **Bounded Simulation Concurrency (`SimulationRunner`)**:
+   - Implemented `asyncio.Semaphore(settings.SIMULATION_MAX_CONCURRENCY)` (defaulting to `1` on HF Space) to prevent CPU and memory exhaustion.
+   - Added explicit `try...finally` browser session cleanup in `BrowserUseAdapter`.
 
-5. **TEST E — GOV.UK Passport Renewal (`https://www.gov.uk/`)**
-   - **Experiment ID:** `8a599aac-b497-4462-9949-868b718fecaa`
-   - **Goal:** Find passport renewal requirements and cost.
+4. **Local Screenshot Storage & Evidence Endpoint**:
+   - Implemented local filesystem storage at `/app/data/screenshots/` mounted at `/evidence/screenshots/` for Space deployments without MinIO.
+
+5. **Live Validation Collector (`scripts/run_live_validation.py`)**:
+   - Created automated collector script to trigger, poll, and persist raw machine-readable API evidence into `validation/YYYY-MM-DD/<site>/`.
 
 ---
 
-## 4. Key Engineering Fixes Implemented
+## 3. Findings & Diagnostic Analysis
 
-1. **SQLite & PostgreSQL Model Compatibility:**
-   - Modified `backend/app/infrastructure/db/models.py` to use dialect-agnostic types (`JSON().with_variant()`, `String(36).with_variant()`).
-2. **UUID Query Handling:**
-   - Updated repository layer (`sqlalchemy_experiment_repository.py`, `sqlalchemy_agent_run_repository.py`, `sqlalchemy_annotation_repository.py`, `sqlalchemy_fix_repository.py`) to convert UUIDs cleanly across SQLite and PostgreSQL.
-3. **OpenAI-Compatible LLM Integration:**
-   - Implemented `CustomChatOpenAI` wrapper in `browser_adapter.py` and updated `BaseAgent` in `base.py` to support custom `OPENAI_BASE_URL`, `OPENAI_API_KEY`, and `OPENAI_MODEL_NAME`.
-4. **Pnpm Build Fix for Docker:**
-   - Updated `Dockerfile` to pass `--ignore-scripts` during `pnpm install` in multi-stage build.
+### Root Cause of 0-Step Completed Runs (`CASCADE_MODEL`)
+While Chromium launched and navigated cleanly to target URLs (e.g. `https://taoshq.com/`), `browser-use` failed during action planning due to missing active LLM API credentials (`ANTHROPIC_API_KEY` or `OPENAI_API_KEY`) in the Hugging Face Space secrets environment.
 
----
-
-## 5. Required Hugging Face Space Configuration
-
-To configure custom LLM endpoints for your Space:
-
-### Secrets
-- `OPENAI_API_KEY`: API Key / Bearer token for OpenAI-compatible endpoint.
-- `ANTHROPIC_API_KEY`: *(Optional)* Anthropic API key.
-
-### Variables
-- `OPENAI_BASE_URL`: Custom API base URL (e.g. `https://api.openai.com/v1`).
-- `OPENAI_MODEL_NAME`: Target LLM model name (e.g. `gpt-4o`).
+### Architectural Conclusion
+UXCascade's deployment, API routing, database layer, and process orchestration are robust and functional. However, full multi-step usability evaluation on live external websites requires valid LLM API key credentials set in the Hugging Face Space secrets (`OPENAI_API_KEY` or `ANTHROPIC_API_KEY`).

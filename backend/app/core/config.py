@@ -28,7 +28,6 @@ class Settings(BaseSettings):
   ENV: str = "dev"
 
   # ── Database ─────────────────────────────────────────────────────────────
-  # DATABASE_URL takes precedence if set. Defaults to local SQLite if empty.
   DATABASE_URL: str = ""
   DB_HOST: str = "localhost"
   DB_PORT: int = 5432
@@ -42,15 +41,16 @@ class Settings(BaseSettings):
   OPENAI_BASE_URL: str = Field(default="")
   OPENAI_MODEL_NAME: str = Field(default="gpt-4o")
 
-  # ── MinIO / Object Storage ────────────────────────────────────────────────
+  # ── Evidence / Screenshot Storage ─────────────────────────────────────────
+  STORAGE_BACKEND: str = "local"  # "local" or "s3"
   MINIO_ENDPOINT: str = "http://localhost:9000"
   MINIO_ACCESS_KEY: str = "minioadmin"
   MINIO_SECRET_KEY: str = "minioadmin"
   MINIO_BUCKET: str = "screenshots"
-  # Public URL that the browser can reach
   MINIO_PUBLIC_URL: str = "http://localhost:9000"
 
-  # ── Browser-use ───────────────────────────────────────────────────────────
+  # ── Concurrency & Browser-use ─────────────────────────────────────────────
+  SIMULATION_MAX_CONCURRENCY: int = 1
   BROWSER_HEADLESS: bool = True
 
   model_config = SettingsConfigDict(

@@ -1,0 +1,22 @@
+{
+  "llm": {
+    "provider": "anthropic",
+    "base_url": "https://api.anthropic.com",
+    "models": {
+      "simulation": "claude-3-7-sonnet-20250219",
+      "tagging": "claude-3-7-sonnet-20250219",
+      "issue_detection": "claude-3-7-sonnet-20250219",
+      "editor": "claude-3-7-sonnet-20250219",
+      "preview": "claude-3-7-sonnet-20250219"
+    }
+  },
+  "browser": {
+    "engine": "chromium",
+    "headless": true
+  },
+  "concurrency": {
+    "max_simulation_concurrency": 1
+  },
+  "database": "sqlite",
+  "storage": "local"
+}

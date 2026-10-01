@@ -1,0 +1,21 @@
+{
+  "id": "f53d5632-914d-42f6-b1db-7f7ce01249b1",
+  "name": "Validation - ikea",
+  "target_url": "https://www.ikea.com/de/de/",
+  "status": "completed",
+  "agent_count": 2,
+  "traits": [
+    {
+      "name": "Task familiarity",
+      "key": "task_familiarity",
+      "values": [
+        "first_time"
+      ]
+    }
+  ],
+  "goals": [
+    "Find desk under 150 euros"
+  ],
+  "created_at": "2026-10-01T21:58:06",
+  "updated_at": "2026-10-01T21:58:29"
+}

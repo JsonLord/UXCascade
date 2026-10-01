@@ -6,57 +6,27 @@ from collections.abc import Awaitable, Callable
 from pathlib import Path
 
 from browser_use import Agent as BrowserUseAgent
-from browser_use import ChatAnthropic
 from browser_use.agent.views import AgentOutput
 from browser_use.browser.views import BrowserStateSummary
 
 from app.agents.ports import BrowserPort, StepData
+from app.core.llm_provider import LLMProvider
 from app.domain.value_objects.persona import Persona
 from app.infrastructure.storage_service import get_storage_service
-
-
-class CustomChatOpenAI:
-  """
-  Wrapper around langchain_openai.ChatOpenAI to provide the .provider attribute
-  expected by browser-use internals without tripping Pydantic extra field validation.
-  """
-
-  def __init__(self, **kwargs):
-    from langchain_openai import ChatOpenAI
-
-    self._llm = ChatOpenAI(**kwargs)
-    self.provider = "openai"
-
-  def __getattr__(self, name: str):
-    return getattr(self._llm, name)
 
 
 class BrowserUseAdapter(BrowserPort):
   """
   Concrete implementation of BrowserPort using the browser-use framework.
 
-  Supports both ChatAnthropic and custom OpenAI-compatible endpoints (CustomChatOpenAI).
+  Delegates LLM creation to central LLMProvider.
   """
 
   _SIMULATION_TEMPERATURE: float = 1.0
   _PREVIEW_TEMPERATURE: float = 0.0
 
-  def _make_llm(self, temperature: float, system_prompt: str):
-    from app.core.config import settings
-
-    if settings.OPENAI_BASE_URL or settings.OPENAI_API_KEY:
-      return CustomChatOpenAI(
-        model=settings.OPENAI_MODEL_NAME or "gpt-4o",
-        temperature=temperature,
-        api_key=settings.OPENAI_API_KEY or "dummy",
-        base_url=settings.OPENAI_BASE_URL if settings.OPENAI_BASE_URL else None,
-      )
-
-    return ChatAnthropic(
-      model="claude-3-7-sonnet-20250219",
-      temperature=temperature,
-      api_key=settings.ANTHROPIC_API_KEY,
-    )
+  def _make_llm(self, temperature: float, system_prompt: str, stage: str = "simulation"):
+    return LLMProvider.make_browser_llm(temperature=temperature, stage=stage)
 
   async def run_simulation(
     self,
@@ -66,7 +36,7 @@ class BrowserUseAdapter(BrowserPort):
     max_steps: int,
     on_step: Callable[[StepData], Awaitable[None]],
   ) -> bool:
-    llm = self._make_llm(self._SIMULATION_TEMPERATURE, behavior_prompt)
+    llm = self._make_llm(self._SIMULATION_TEMPERATURE, behavior_prompt, stage="simulation")
 
     pending: dict = {}
     step_counter: list[int] = [0]
@@ -141,12 +111,19 @@ class BrowserUseAdapter(BrowserPort):
       register_new_step_callback=_on_new_step,
     )
 
-    result = await agent.run(
-      max_steps=max_steps,
-      on_step_end=_on_step_end,
-    )
-
-    return result.is_successful() is True
+    try:
+      result = await agent.run(
+        max_steps=max_steps,
+        on_step_end=_on_step_end,
+      )
+      return result.is_successful() is True
+    finally:
+      # Ensure browser session / pages are cleaned up
+      try:
+        if hasattr(agent, "browser_session") and agent.browser_session:
+          await agent.browser_session.close()
+      except Exception:
+        pass
 
   async def run_single_step_with_html(
     self,
@@ -155,7 +132,7 @@ class BrowserUseAdapter(BrowserPort):
     persona: Persona,
     behavior_prompt: str,
   ) -> StepData:
-    llm = self._make_llm(self._PREVIEW_TEMPERATURE, behavior_prompt)
+    llm = self._make_llm(self._PREVIEW_TEMPERATURE, behavior_prompt, stage="preview")
 
     with tempfile.NamedTemporaryFile(
       suffix=".html", mode="w", encoding="utf-8", delete=False
@@ -219,15 +196,21 @@ class BrowserUseAdapter(BrowserPort):
       register_should_stop_callback=_should_stop,
     )
 
-    await agent.run(
-      max_steps=1,
-      on_step_end=_on_step_end,
-    )
-
     try:
-      html_path.unlink()
-    except OSError:
-      pass
+      await agent.run(
+        max_steps=1,
+        on_step_end=_on_step_end,
+      )
+    finally:
+      try:
+        if hasattr(agent, "browser_session") and agent.browser_session:
+          await agent.browser_session.close()
+      except Exception:
+        pass
+      try:
+        html_path.unlink()
+      except OSError:
+        pass
 
     if not captured:
       return StepData(
@@ -302,18 +285,17 @@ async def _get_page_data(
     elements_json = await page.evaluate("""
       () => Array.from(document.querySelectorAll('[data-index]'))
         .map(el => {
-          const rect = el.getBoundingClientRect();
-          return {
+          const rect = el.getAttribute('data-index') ? {
             index: el.getAttribute('data-index'),
             tag: el.tagName.toLowerCase(),
-            x: Math.round(rect.x),
-            y: Math.round(rect.y),
-            width: Math.round(rect.width),
-            height: Math.round(rect.height),
-          };
+            x: Math.round(el.getBoundingClientRect().x),
+            y: Math.round(el.getBoundingClientRect().y),
+            width: Math.round(el.getBoundingClientRect().width),
+            height: Math.round(el.getBoundingClientRect().height),
+          } : null;
+          return rect;
         })
-        .filter(el => el.width > 2 && el.height > 2
-                   && el.x >= 0 && el.y >= 0)
+        .filter(el => el && el.width > 2 && el.height > 2 && el.x >= 0 && el.y >= 0)
     """)
     elements: list[dict] = json.loads(elements_json) if elements_json else []
 
