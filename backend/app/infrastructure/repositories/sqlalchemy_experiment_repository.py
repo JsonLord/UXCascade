@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import uuid as _uuid
 from typing import Any
 
 from sqlalchemy import delete, select
@@ -37,7 +36,7 @@ async def _load_related(
     (
       await session.execute(
         select(models.TraitConfig).where(
-          models.TraitConfig.experiment_id == experiment_id
+          models.TraitConfig.experiment_id == str(experiment_id)
         )
       )
     )
@@ -48,7 +47,7 @@ async def _load_related(
     (
       await session.execute(
         select(models.ExperimentGoal).where(
-          models.ExperimentGoal.experiment_id == experiment_id
+          models.ExperimentGoal.experiment_id == str(experiment_id)
         )
       )
     )
@@ -59,16 +58,11 @@ async def _load_related(
 
 
 class SQLAlchemyExperimentRepository(IExperimentRepository):
-  """
-  PostgreSQL (asyncpg + SQLAlchemy async) implementation of the Experiment repository.
-  Uses ORM models from app.db.models and handles mapping to domain entities.
-  """
-
   def __init__(self, session: AsyncSession) -> None:
     self._session = session
 
   async def save(self, experiment: Experiment) -> None:
-    exp_id = _uuid.UUID(experiment.id)
+    exp_id = str(experiment.id)
     row = (
       await self._session.execute(
         select(models.Experiment).where(models.Experiment.id == exp_id)
@@ -115,7 +109,7 @@ class SQLAlchemyExperimentRepository(IExperimentRepository):
     await self._session.commit()
 
   async def find_by_id(self, experiment_id: str) -> Experiment | None:
-    exp_id = _uuid.UUID(experiment_id)
+    exp_id = str(experiment_id)
     row = (
       await self._session.execute(
         select(models.Experiment).where(models.Experiment.id == exp_id)
@@ -159,7 +153,7 @@ class SQLAlchemyExperimentRepository(IExperimentRepository):
     return result
 
   async def delete(self, experiment_id: str) -> None:
-    exp_id = _uuid.UUID(experiment_id)
+    exp_id = str(experiment_id)
     await self._session.execute(
       delete(models.Experiment).where(models.Experiment.id == exp_id)
     )

@@ -15,39 +15,45 @@ from app.domain.value_objects.persona import Persona
 from app.infrastructure.storage_service import get_storage_service
 
 
+class CustomChatOpenAI:
+  """
+  Wrapper around langchain_openai.ChatOpenAI to provide the .provider attribute
+  expected by browser-use internals without tripping Pydantic extra field validation.
+  """
+
+  def __init__(self, **kwargs):
+    from langchain_openai import ChatOpenAI
+
+    self._llm = ChatOpenAI(**kwargs)
+    self.provider = "openai"
+
+  def __getattr__(self, name: str):
+    return getattr(self._llm, name)
+
+
 class BrowserUseAdapter(BrowserPort):
   """
   Concrete implementation of BrowserPort using the browser-use framework.
 
-  SimulationAgent and PreviewAgent only see the BrowserPort interface, making it
-  easy to swap this for another browser implementation (direct Playwright, headless mock, etc.).
-
-  LLM settings:
-    - Simulation: temperature=1.0 (for action diversity)
-    - Preview single-step re-run: temperature=0.0
-
-  Callback strategy:
-    register_new_step_callback(BrowserStateSummary, AgentOutput, step_n)
-      → Called before action execution. Records screenshot, reasoning, and next action.
-    on_step_end(agent)
-      → Called after action execution. Retrieves the latest step result from agent.history
-        and fetches [data-index] element bboxes from Playwright to pass to StorageService.
+  Supports both ChatAnthropic and custom OpenAI-compatible endpoints (CustomChatOpenAI).
   """
 
   _SIMULATION_TEMPERATURE: float = 1.0
   _PREVIEW_TEMPERATURE: float = 0.0
-  _LLM_MODEL: str = "claude-sonnet-4-6"
 
-  def _make_llm(self, temperature: float, system_prompt: str) -> ChatAnthropic:
-    """
-    Create a ChatAnthropic instance to pass to browser-use.
-    behavior_prompt is passed as override_system_message to the Agent,
-    so only the base LLM is configured here.
-    """
+  def _make_llm(self, temperature: float, system_prompt: str):
     from app.core.config import settings
 
+    if settings.OPENAI_BASE_URL or settings.OPENAI_API_KEY:
+      return CustomChatOpenAI(
+        model=settings.OPENAI_MODEL_NAME or "gpt-4o",
+        temperature=temperature,
+        api_key=settings.OPENAI_API_KEY or "dummy",
+        base_url=settings.OPENAI_BASE_URL if settings.OPENAI_BASE_URL else None,
+      )
+
     return ChatAnthropic(
-      model=self._LLM_MODEL,
+      model="claude-3-7-sonnet-20250219",
       temperature=temperature,
       api_key=settings.ANTHROPIC_API_KEY,
     )
@@ -60,15 +66,8 @@ class BrowserUseAdapter(BrowserPort):
     max_steps: int,
     on_step: Callable[[StepData], Awaitable[None]],
   ) -> bool:
-    """
-    Run a simulation using the browser-use Agent.
-
-    Collects pre-action data via register_new_step_callback,
-    then completes the StepData with action results in the on_step_end hook.
-    """
     llm = self._make_llm(self._SIMULATION_TEMPERATURE, behavior_prompt)
 
-    # Shared state dict across steps
     pending: dict = {}
     step_counter: list[int] = [0]
 
@@ -77,7 +76,6 @@ class BrowserUseAdapter(BrowserPort):
       agent_output: AgentOutput,
       step_n: int,
     ) -> None:
-      """Before action execution: record screenshot, reasoning, and action type."""
       action_name, action_selector, action_value = _extract_action(agent_output)
       pending.update(
         {
@@ -100,19 +98,15 @@ class BrowserUseAdapter(BrowserPort):
       step_counter[0] = step_n
 
     async def _on_step_end(agent: BrowserUseAgent) -> None:
-      """After action execution: collect HTML, annotated screenshot URL, and result to complete StepData."""
       if not pending:
         return
 
-      # Fetch HTML and [data-index] element bboxes from Playwright
       raw_html, elements = await _get_page_data(agent)
 
-      # Delegate annotation and upload to StorageService
       screenshot_url = await get_storage_service().save_step_screenshot_async(
         pending["screenshot_b64"], elements
       )
 
-      # Retrieve the latest execution result from history
       action_result = ""
       errors: list[str] = list(pending.get("errors", []))
       if agent.history.history:
@@ -157,19 +151,12 @@ class BrowserUseAdapter(BrowserPort):
   async def run_single_step_with_html(
     self,
     fixed_html: str,
-    prompt_history: list[dict],  # noqa: ARG002  # unused in current version (reserved for future use)
+    prompt_history: list[dict],
     persona: Persona,
     behavior_prompt: str,
   ) -> StepData:
-    """
-    Serve fixed HTML as a temporary file and re-simulate a single step.
-
-    prompt_history is kept as an argument for future use via browser-use's
-    injected_agent_state, but is not yet implemented in the current version.
-    """
     llm = self._make_llm(self._PREVIEW_TEMPERATURE, behavior_prompt)
 
-    # Write fixed HTML to a temporary file and serve via file:// URL
     with tempfile.NamedTemporaryFile(
       suffix=".html", mode="w", encoding="utf-8", delete=False
     ) as f:
@@ -184,7 +171,7 @@ class BrowserUseAdapter(BrowserPort):
       agent_output: AgentOutput,
       step_n: int,
     ) -> None:
-      if captured:  # only record the first step
+      if captured:
         return
       action_name, action_selector, action_value = _extract_action(agent_output)
       captured.update(
@@ -209,7 +196,6 @@ class BrowserUseAdapter(BrowserPort):
     stop_flag: list[bool] = [False]
 
     async def _should_stop() -> bool:
-      """Stop after one step has been executed."""
       if stop_flag[0]:
         return True
       stop_flag[0] = True
@@ -238,14 +224,12 @@ class BrowserUseAdapter(BrowserPort):
       on_step_end=_on_step_end,
     )
 
-    # Delete temporary file
     try:
       html_path.unlink()
     except OSError:
       pass
 
     if not captured:
-      # Fallback when capture fails
       return StepData(
         step=1,
         html=fixed_html,
@@ -275,21 +259,9 @@ class BrowserUseAdapter(BrowserPort):
     )
 
 
-# ─────────────── Helper functions ───────────────────────────────────────────
-
-
 def _extract_action(
   agent_output: AgentOutput,
 ) -> tuple[str, str | None, str | None]:
-  """
-  Extract action name, selector, and value from AgentOutput.action[0].
-
-  ActionModel is dynamically generated, so it is converted to a dict via model_dump().
-  Examples:
-    {"click": {"index": 5}} → ("click", None, None)
-    {"input_text": {"index": 2, "text": "hello"}} → ("type", None, "hello")
-    {"go_to_url": {"url": "https://..."}} → ("navigate", None, "https://...")
-  """
   if not agent_output.action:
     return ("navigate", None, None)
 
@@ -320,14 +292,6 @@ def _extract_action(
 async def _get_page_data(
   agent: BrowserUseAgent,
 ) -> tuple[str, list[dict]]:
-  """
-  Fetch HTML and bounding boxes of [data-index] elements from the Playwright page.
-
-  Returns
-  -------
-  (raw_html, elements)
-      elements: [{index, tag, x, y, width, height}, ...] only elements within the viewport
-  """
   try:
     page = await agent.browser_session.get_current_page()
     if page is None:

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import uuid as _uuid
+from typing import Any
 
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,11 +12,11 @@ from app.domain.value_objects.enums import PatchAction
 from app.infrastructure.db import models
 
 
-async def _load_patches(session: AsyncSession, fix_id: _uuid.UUID) -> list[HtmlPatch]:
+async def _load_patches(session: AsyncSession, fix_id: Any) -> list[HtmlPatch]:
   rows = (
     (
       await session.execute(
-        select(models.HtmlPatch).where(models.HtmlPatch.fix_id == fix_id)
+        select(models.HtmlPatch).where(models.HtmlPatch.fix_id == str(fix_id))
       )
     )
     .scalars()
@@ -73,15 +73,11 @@ def _eval_row_to_entity(row: models.EvaluationResult) -> EvaluationResult:
 
 
 class SQLAlchemyFixRepository(IFixRepository):
-  """
-  PostgreSQL implementation of the Fix + EvaluationResult repository.
-  """
-
   def __init__(self, session: AsyncSession) -> None:
     self._session = session
 
   async def save_fix(self, fix: Fix) -> None:
-    fix_id = _uuid.UUID(fix.id)
+    fix_id = str(fix.id)
     row = (
       await self._session.execute(select(models.Fix).where(models.Fix.id == fix_id))
     ).scalar_one_or_none()
@@ -89,8 +85,8 @@ class SQLAlchemyFixRepository(IFixRepository):
     if row is None:
       row = models.Fix(
         id=fix_id,
-        experiment_id=_uuid.UUID(fix.experiment_id),
-        issue_id=_uuid.UUID(fix.issue_id),
+        experiment_id=str(fix.experiment_id),
+        issue_id=str(fix.issue_id),
         instruction=fix.instruction,
         status=fix.status,
         notes=fix.notes,
@@ -123,7 +119,7 @@ class SQLAlchemyFixRepository(IFixRepository):
     await self._session.commit()
 
   async def find_fix_by_id(self, fix_id: str) -> Fix | None:
-    fid = _uuid.UUID(fix_id)
+    fid = str(fix_id)
     row = (
       await self._session.execute(select(models.Fix).where(models.Fix.id == fid))
     ).scalar_one_or_none()
@@ -133,7 +129,7 @@ class SQLAlchemyFixRepository(IFixRepository):
     return _fix_row_to_entity(row, patches)
 
   async def find_fixes_by_experiment(self, experiment_id: str) -> list[Fix]:
-    exp_id = _uuid.UUID(experiment_id)
+    exp_id = str(experiment_id)
     rows = (
       (
         await self._session.execute(
@@ -152,9 +148,9 @@ class SQLAlchemyFixRepository(IFixRepository):
   async def save_evaluation(self, evaluation: EvaluationResult) -> None:
     self._session.add(
       models.EvaluationResult(
-        id=_uuid.UUID(evaluation.id),
-        fix_id=_uuid.UUID(evaluation.fix_id),
-        agent_run_id=_uuid.UUID(evaluation.agent_run_id),
+        id=str(evaluation.id),
+        fix_id=str(evaluation.fix_id),
+        agent_run_id=str(evaluation.agent_run_id),
         step=evaluation.step,
         action_changed=evaluation.action_changed,
         issue_resolved=evaluation.issue_resolved,
@@ -175,7 +171,7 @@ class SQLAlchemyFixRepository(IFixRepository):
     await self._session.commit()
 
   async def find_evaluations_by_fix(self, fix_id: str) -> list[EvaluationResult]:
-    fid = _uuid.UUID(fix_id)
+    fid = str(fix_id)
     rows = (
       (
         await self._session.execute(
