@@ -2,54 +2,40 @@ from __future__ import annotations
 
 import json
 import tempfile
+import os
 from collections.abc import Awaitable, Callable
 from pathlib import Path
 
 from browser_use import Agent as BrowserUseAgent
-from browser_use import ChatAnthropic
+from browser_use.browser.config import BrowserConfig
 from browser_use.agent.views import AgentOutput
 from browser_use.browser.views import BrowserStateSummary
 
 from app.agents.ports import BrowserPort, StepData
+from app.core.config import settings
+from app.core.llm_provider import LLMProvider
 from app.domain.value_objects.persona import Persona
 from app.infrastructure.storage_service import get_storage_service
+
+os.environ["ANONYMIZED_TELEMETRY"] = "false"
 
 
 class BrowserUseAdapter(BrowserPort):
   """
-  Concrete implementation of BrowserPort using the browser-use framework.
-
-  SimulationAgent and PreviewAgent only see the BrowserPort interface, making it
-  easy to swap this for another browser implementation (direct Playwright, headless mock, etc.).
-
-  LLM settings:
-    - Simulation: temperature=1.0 (for action diversity)
-    - Preview single-step re-run: temperature=0.0
-
-  Callback strategy:
-    register_new_step_callback(BrowserStateSummary, AgentOutput, step_n)
-      → Called before action execution. Records screenshot, reasoning, and next action.
-    on_step_end(agent)
-      → Called after action execution. Retrieves the latest step result from agent.history
-        and fetches [data-index] element bboxes from Playwright to pass to StorageService.
+  Concrete implementation of BrowserPort using browser-use with clean browser profile
+  and persona behavior prompt override.
   """
 
   _SIMULATION_TEMPERATURE: float = 1.0
   _PREVIEW_TEMPERATURE: float = 0.0
-  _LLM_MODEL: str = "claude-sonnet-4-6"
 
-  def _make_llm(self, temperature: float, system_prompt: str) -> ChatAnthropic:
-    """
-    Create a ChatAnthropic instance to pass to browser-use.
-    behavior_prompt is passed as override_system_message to the Agent,
-    so only the base LLM is configured here.
-    """
-    from app.core.config import settings
+  def _make_llm(self, temperature: float, system_prompt: str, stage: str = "simulation"):
+    return LLMProvider.make_browser_llm(temperature=temperature, stage=stage)
 
-    return ChatAnthropic(
-      model=self._LLM_MODEL,
-      temperature=temperature,
-      api_key=settings.ANTHROPIC_API_KEY,
+  def _make_browser_config(self) -> BrowserConfig:
+    return BrowserConfig(
+      headless=settings.BROWSER_HEADLESS,
+      extra_chromium_args=["--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu"],
     )
 
   async def run_simulation(
@@ -60,15 +46,9 @@ class BrowserUseAdapter(BrowserPort):
     max_steps: int,
     on_step: Callable[[StepData], Awaitable[None]],
   ) -> bool:
-    """
-    Run a simulation using the browser-use Agent.
+    llm = self._make_llm(self._SIMULATION_TEMPERATURE, behavior_prompt, stage="simulation")
+    browser_config = self._make_browser_config()
 
-    Collects pre-action data via register_new_step_callback,
-    then completes the StepData with action results in the on_step_end hook.
-    """
-    llm = self._make_llm(self._SIMULATION_TEMPERATURE, behavior_prompt)
-
-    # Shared state dict across steps
     pending: dict = {}
     step_counter: list[int] = [0]
 
@@ -77,7 +57,6 @@ class BrowserUseAdapter(BrowserPort):
       agent_output: AgentOutput,
       step_n: int,
     ) -> None:
-      """Before action execution: record screenshot, reasoning, and action type."""
       action_name, action_selector, action_value = _extract_action(agent_output)
       pending.update(
         {
@@ -100,19 +79,15 @@ class BrowserUseAdapter(BrowserPort):
       step_counter[0] = step_n
 
     async def _on_step_end(agent: BrowserUseAgent) -> None:
-      """After action execution: collect HTML, annotated screenshot URL, and result to complete StepData."""
       if not pending:
         return
 
-      # Fetch HTML and [data-index] element bboxes from Playwright
       raw_html, elements = await _get_page_data(agent)
 
-      # Delegate annotation and upload to StorageService
       screenshot_url = await get_storage_service().save_step_screenshot_async(
         pending["screenshot_b64"], elements
       )
 
-      # Retrieve the latest execution result from history
       action_result = ""
       errors: list[str] = list(pending.get("errors", []))
       if agent.history.history:
@@ -143,33 +118,34 @@ class BrowserUseAdapter(BrowserPort):
     agent = BrowserUseAgent(
       task=task,
       llm=llm,
+      browser_config=browser_config,
       override_system_message=behavior_prompt,
       register_new_step_callback=_on_new_step,
     )
 
-    result = await agent.run(
-      max_steps=max_steps,
-      on_step_end=_on_step_end,
-    )
-
-    return result.is_successful() is True
+    try:
+      result = await agent.run(
+        max_steps=max_steps,
+        on_step_end=_on_step_end,
+      )
+      return result.is_successful() is True
+    finally:
+      try:
+        if hasattr(agent, "browser_session") and agent.browser_session:
+          await agent.browser_session.close()
+      except Exception:
+        pass
 
   async def run_single_step_with_html(
     self,
     fixed_html: str,
-    prompt_history: list[dict],  # noqa: ARG002  # unused in current version (reserved for future use)
+    prompt_history: list[dict],
     persona: Persona,
     behavior_prompt: str,
   ) -> StepData:
-    """
-    Serve fixed HTML as a temporary file and re-simulate a single step.
+    llm = self._make_llm(self._PREVIEW_TEMPERATURE, behavior_prompt, stage="preview")
+    browser_config = self._make_browser_config()
 
-    prompt_history is kept as an argument for future use via browser-use's
-    injected_agent_state, but is not yet implemented in the current version.
-    """
-    llm = self._make_llm(self._PREVIEW_TEMPERATURE, behavior_prompt)
-
-    # Write fixed HTML to a temporary file and serve via file:// URL
     with tempfile.NamedTemporaryFile(
       suffix=".html", mode="w", encoding="utf-8", delete=False
     ) as f:
@@ -184,7 +160,7 @@ class BrowserUseAdapter(BrowserPort):
       agent_output: AgentOutput,
       step_n: int,
     ) -> None:
-      if captured:  # only record the first step
+      if captured:
         return
       action_name, action_selector, action_value = _extract_action(agent_output)
       captured.update(
@@ -209,7 +185,6 @@ class BrowserUseAdapter(BrowserPort):
     stop_flag: list[bool] = [False]
 
     async def _should_stop() -> bool:
-      """Stop after one step has been executed."""
       if stop_flag[0]:
         return True
       stop_flag[0] = True
@@ -228,24 +203,29 @@ class BrowserUseAdapter(BrowserPort):
     agent = BrowserUseAgent(
       task=f"Navigate to {file_url} and observe the page.",
       llm=llm,
+      browser_config=browser_config,
       override_system_message=behavior_prompt,
       register_new_step_callback=_on_new_step,
       register_should_stop_callback=_should_stop,
     )
 
-    await agent.run(
-      max_steps=1,
-      on_step_end=_on_step_end,
-    )
-
-    # Delete temporary file
     try:
-      html_path.unlink()
-    except OSError:
-      pass
+      await agent.run(
+        max_steps=1,
+        on_step_end=_on_step_end,
+      )
+    finally:
+      try:
+        if hasattr(agent, "browser_session") and agent.browser_session:
+          await agent.browser_session.close()
+      except Exception:
+        pass
+      try:
+        html_path.unlink()
+      except OSError:
+        pass
 
     if not captured:
-      # Fallback when capture fails
       return StepData(
         step=1,
         html=fixed_html,
@@ -275,21 +255,9 @@ class BrowserUseAdapter(BrowserPort):
     )
 
 
-# ─────────────── Helper functions ───────────────────────────────────────────
-
-
 def _extract_action(
   agent_output: AgentOutput,
 ) -> tuple[str, str | None, str | None]:
-  """
-  Extract action name, selector, and value from AgentOutput.action[0].
-
-  ActionModel is dynamically generated, so it is converted to a dict via model_dump().
-  Examples:
-    {"click": {"index": 5}} → ("click", None, None)
-    {"input_text": {"index": 2, "text": "hello"}} → ("type", None, "hello")
-    {"go_to_url": {"url": "https://..."}} → ("navigate", None, "https://...")
-  """
   if not agent_output.action:
     return ("navigate", None, None)
 
@@ -320,14 +288,6 @@ def _extract_action(
 async def _get_page_data(
   agent: BrowserUseAgent,
 ) -> tuple[str, list[dict]]:
-  """
-  Fetch HTML and bounding boxes of [data-index] elements from the Playwright page.
-
-  Returns
-  -------
-  (raw_html, elements)
-      elements: [{index, tag, x, y, width, height}, ...] only elements within the viewport
-  """
   try:
     page = await agent.browser_session.get_current_page()
     if page is None:
@@ -338,18 +298,17 @@ async def _get_page_data(
     elements_json = await page.evaluate("""
       () => Array.from(document.querySelectorAll('[data-index]'))
         .map(el => {
-          const rect = el.getBoundingClientRect();
-          return {
+          const rect = el.getAttribute('data-index') ? {
             index: el.getAttribute('data-index'),
             tag: el.tagName.toLowerCase(),
-            x: Math.round(rect.x),
-            y: Math.round(rect.y),
-            width: Math.round(rect.width),
-            height: Math.round(rect.height),
-          };
+            x: Math.round(el.getBoundingClientRect().x),
+            y: Math.round(el.getBoundingClientRect().y),
+            width: Math.round(el.getBoundingClientRect().width),
+            height: Math.round(el.getBoundingClientRect().height),
+          } : null;
+          return rect;
         })
-        .filter(el => el.width > 2 && el.height > 2
-                   && el.x >= 0 && el.y >= 0)
+        .filter(el => el && el.width > 2 && el.height > 2 && el.x >= 0 && el.y >= 0)
     """)
     elements: list[dict] = json.loads(elements_json) if elements_json else []
 

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import uuid
-
 from sqlalchemy import (
   Boolean,
   Column,
@@ -15,16 +14,27 @@ from sqlalchemy import (
   Text,
   UniqueConstraint,
   func,
+  JSON,
+  String,
 )
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
 
 from app.infrastructure.db.base import Base
 
+# Dialect-agnostic type definitions for SQLite and PostgreSQL compatibility
+JSON_TYPE = JSON().with_variant(JSONB, "postgresql")
+ARRAY_TEXT_TYPE = JSON().with_variant(ARRAY(Text), "postgresql")
+UUID_TYPE = String(36).with_variant(UUID(as_uuid=False), "postgresql")
+
+
+def _generate_uuid() -> str:
+  return str(uuid.uuid4())
+
 
 class Experiment(Base):
   __tablename__ = "experiments"
 
-  id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+  id = Column(UUID_TYPE, primary_key=True, default=_generate_uuid)
   name = Column(Text, nullable=False)
   target_url = Column(Text, nullable=False)
   status = Column(Text, nullable=False)
@@ -47,15 +57,15 @@ class Experiment(Base):
 class TraitConfig(Base):
   __tablename__ = "trait_configs"
 
-  id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+  id = Column(UUID_TYPE, primary_key=True, default=_generate_uuid)
   experiment_id = Column(
-    UUID(as_uuid=True),
+    UUID_TYPE,
     ForeignKey("experiments.id", ondelete="CASCADE"),
     nullable=False,
   )
   name = Column(Text, nullable=False)
   key = Column(Text, nullable=False)
-  values = Column(ARRAY(Text), nullable=False)
+  values = Column(ARRAY_TEXT_TYPE, nullable=False)
 
   __table_args__ = (
     UniqueConstraint(
@@ -70,9 +80,9 @@ class TraitConfig(Base):
 class ExperimentGoal(Base):
   __tablename__ = "experiment_goals"
 
-  id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+  id = Column(UUID_TYPE, primary_key=True, default=_generate_uuid)
   experiment_id = Column(
-    UUID(as_uuid=True),
+    UUID_TYPE,
     ForeignKey("experiments.id", ondelete="CASCADE"),
     nullable=False,
   )
@@ -91,14 +101,14 @@ class ExperimentGoal(Base):
 class AgentRun(Base):
   __tablename__ = "agent_runs"
 
-  id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+  id = Column(UUID_TYPE, primary_key=True, default=_generate_uuid)
   experiment_id = Column(
-    UUID(as_uuid=True),
+    UUID_TYPE,
     ForeignKey("experiments.id", ondelete="CASCADE"),
     nullable=False,
   )
-  persona_id = Column(UUID(as_uuid=True), default=uuid.uuid4, nullable=False)
-  persona_traits = Column(JSONB, nullable=False)
+  persona_id = Column(UUID_TYPE, default=_generate_uuid, nullable=False)
+  persona_traits = Column(JSON_TYPE, nullable=False)
   goal = Column(Text, nullable=False)
   status = Column(Text, nullable=False)
   success = Column(Boolean, nullable=True)
@@ -111,20 +121,15 @@ class AgentRun(Base):
     Index("idx_agent_runs_experiment_id", "experiment_id"),
     Index("idx_agent_runs_status", "status"),
     Index("idx_agent_runs_goal", "goal"),
-    Index(
-      "idx_agent_runs_persona_traits_gin",
-      "persona_traits",
-      postgresql_using="gin",
-    ),
   )
 
 
 class EventSnapshot(Base):
   __tablename__ = "event_snapshots"
 
-  id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+  id = Column(UUID_TYPE, primary_key=True, default=_generate_uuid)
   agent_run_id = Column(
-    UUID(as_uuid=True),
+    UUID_TYPE,
     ForeignKey("agent_runs.id", ondelete="CASCADE"),
     nullable=False,
   )
@@ -132,12 +137,12 @@ class EventSnapshot(Base):
   timestamp = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
   raw_html = Column(Text, nullable=False)
   screenshot = Column(Text, nullable=False)
-  tab_metadata = Column(JSONB, nullable=False)
+  tab_metadata = Column(JSON_TYPE, nullable=False)
   reasoning = Column(Text, nullable=False)
   prompt = Column(Text, nullable=False)
-  action = Column(JSONB, nullable=False)
+  action = Column(JSON_TYPE, nullable=False)
   action_result = Column(Text, nullable=False)
-  errors = Column(ARRAY(Text), nullable=False, server_default="{}")
+  errors = Column(ARRAY_TEXT_TYPE, nullable=False, server_default="[]")
 
   __table_args__ = (
     UniqueConstraint(
@@ -152,14 +157,14 @@ class EventSnapshot(Base):
 class StepAnnotation(Base):
   __tablename__ = "step_annotations"
 
-  id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+  id = Column(UUID_TYPE, primary_key=True, default=_generate_uuid)
   agent_run_id = Column(
-    UUID(as_uuid=True),
+    UUID_TYPE,
     ForeignKey("agent_runs.id", ondelete="CASCADE"),
     nullable=False,
   )
   step = Column(Integer, nullable=False)
-  tags = Column(ARRAY(Text), nullable=False, server_default="{}")
+  tags = Column(ARRAY_TEXT_TYPE, nullable=False, server_default="[]")
 
   __table_args__ = (
     UniqueConstraint(
@@ -174,14 +179,14 @@ class StepAnnotation(Base):
 class Issue(Base):
   __tablename__ = "issues"
 
-  id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+  id = Column(UUID_TYPE, primary_key=True, default=_generate_uuid)
   experiment_id = Column(
-    UUID(as_uuid=True),
+    UUID_TYPE,
     ForeignKey("experiments.id", ondelete="CASCADE"),
     nullable=False,
   )
   agent_run_id = Column(
-    UUID(as_uuid=True),
+    UUID_TYPE,
     ForeignKey("agent_runs.id", ondelete="CASCADE"),
     nullable=False,
   )
@@ -191,7 +196,7 @@ class Issue(Base):
   element = Column(Text, nullable=False)
   reason = Column(Text, nullable=False)
   fix = Column(Text, nullable=False)
-  upt_codes = Column(ARRAY(Text), nullable=False, server_default="{}")
+  upt_codes = Column(ARRAY_TEXT_TYPE, nullable=False, server_default="[]")
   upt_explanation = Column(Text, nullable=False)
   severity = Column(SmallInteger, nullable=False)
 
@@ -200,20 +205,15 @@ class Issue(Base):
     Index("idx_issues_agent_run_id", "agent_run_id"),
     Index("idx_issues_goal", "goal"),
     Index("idx_issues_severity", "severity"),
-    Index(
-      "idx_issues_upt_codes_gin",
-      "upt_codes",
-      postgresql_using="gin",
-    ),
   )
 
 
 class GoalSummary(Base):
   __tablename__ = "goal_summaries"
 
-  id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+  id = Column(UUID_TYPE, primary_key=True, default=_generate_uuid)
   experiment_id = Column(
-    UUID(as_uuid=True),
+    UUID_TYPE,
     ForeignKey("experiments.id", ondelete="CASCADE"),
     nullable=False,
   )
@@ -236,9 +236,9 @@ class GoalSummary(Base):
 class TraitDistribution(Base):
   __tablename__ = "trait_distributions"
 
-  id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+  id = Column(UUID_TYPE, primary_key=True, default=_generate_uuid)
   goal_summary_id = Column(
-    UUID(as_uuid=True),
+    UUID_TYPE,
     ForeignKey("goal_summaries.id", ondelete="CASCADE"),
     nullable=False,
   )
@@ -263,13 +263,13 @@ trait_distribution_issues = Table(
   Base.metadata,
   Column(
     "trait_distribution_id",
-    UUID(as_uuid=True),
+    UUID_TYPE,
     ForeignKey("trait_distributions.id", ondelete="CASCADE"),
     primary_key=True,
   ),
   Column(
     "issue_id",
-    UUID(as_uuid=True),
+    UUID_TYPE,
     ForeignKey("issues.id", ondelete="CASCADE"),
     primary_key=True,
   ),
@@ -279,14 +279,14 @@ trait_distribution_issues = Table(
 class Fix(Base):
   __tablename__ = "fixes"
 
-  id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+  id = Column(UUID_TYPE, primary_key=True, default=_generate_uuid)
   experiment_id = Column(
-    UUID(as_uuid=True),
+    UUID_TYPE,
     ForeignKey("experiments.id", ondelete="CASCADE"),
     nullable=False,
   )
   issue_id = Column(
-    UUID(as_uuid=True),
+    UUID_TYPE,
     ForeignKey("issues.id", ondelete="CASCADE"),
     nullable=False,
   )
@@ -306,9 +306,9 @@ class Fix(Base):
 class HtmlPatch(Base):
   __tablename__ = "html_patches"
 
-  id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+  id = Column(UUID_TYPE, primary_key=True, default=_generate_uuid)
   fix_id = Column(
-    UUID(as_uuid=True),
+    UUID_TYPE,
     ForeignKey("fixes.id", ondelete="CASCADE"),
     nullable=False,
   )
@@ -324,14 +324,14 @@ class HtmlPatch(Base):
 class EvaluationResult(Base):
   __tablename__ = "evaluation_results"
 
-  id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+  id = Column(UUID_TYPE, primary_key=True, default=_generate_uuid)
   fix_id = Column(
-    UUID(as_uuid=True),
+    UUID_TYPE,
     ForeignKey("fixes.id", ondelete="CASCADE"),
     nullable=False,
   )
   agent_run_id = Column(
-    UUID(as_uuid=True),
+    UUID_TYPE,
     ForeignKey("agent_runs.id", ondelete="CASCADE"),
     nullable=False,
   )
@@ -339,8 +339,8 @@ class EvaluationResult(Base):
   action_changed = Column(Boolean, nullable=False)
   issue_resolved = Column(Boolean, nullable=True)
   summary = Column(Text, nullable=False)
-  before_action = Column(JSONB, nullable=False)
-  after_action = Column(JSONB, nullable=False)
+  before_action = Column(JSON_TYPE, nullable=False)
+  after_action = Column(JSON_TYPE, nullable=False)
   created_at = Column(
     DateTime(timezone=True), server_default=func.now(), nullable=False
   )

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import uuid as _uuid
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -40,13 +40,13 @@ def _snapshot_row_to_entity(row: models.EventSnapshot) -> EventSnapshot:
 
 
 async def _load_snapshots(
-  session: AsyncSession, agent_run_id: _uuid.UUID
+  session: AsyncSession, agent_run_id: Any
 ) -> list[EventSnapshot]:
   rows = (
     (
       await session.execute(
         select(models.EventSnapshot)
-        .where(models.EventSnapshot.agent_run_id == agent_run_id)
+        .where(models.EventSnapshot.agent_run_id == str(agent_run_id))
         .order_by(models.EventSnapshot.step)
       )
     )
@@ -77,16 +77,11 @@ def _run_row_to_entity(
 
 
 class SQLAlchemyAgentRunRepository(IAgentRunRepository):
-  """
-  PostgreSQL implementation of the AgentRun + EventSnapshot repository.
-  Snapshots are eagerly loaded together with AgentRun.
-  """
-
   def __init__(self, session: AsyncSession) -> None:
     self._session = session
 
   async def save(self, agent_run: AgentRun) -> None:
-    run_id = _uuid.UUID(agent_run.id)
+    run_id = str(agent_run.id)
     row = (
       await self._session.execute(
         select(models.AgentRun).where(models.AgentRun.id == run_id)
@@ -96,8 +91,8 @@ class SQLAlchemyAgentRunRepository(IAgentRunRepository):
     if row is None:
       row = models.AgentRun(
         id=run_id,
-        experiment_id=_uuid.UUID(agent_run.experiment_id),
-        persona_id=_uuid.UUID(agent_run.persona.id),
+        experiment_id=str(agent_run.experiment_id),
+        persona_id=str(agent_run.persona.id),
         persona_traits=agent_run.persona.traits,
         goal=agent_run.goal,
         status=agent_run.status.value,
@@ -113,7 +108,7 @@ class SQLAlchemyAgentRunRepository(IAgentRunRepository):
     await self._session.commit()
 
   async def find_by_id(self, agent_run_id: str) -> AgentRun | None:
-    run_id = _uuid.UUID(agent_run_id)
+    run_id = str(agent_run_id)
     row = (
       await self._session.execute(
         select(models.AgentRun).where(models.AgentRun.id == run_id)
@@ -125,7 +120,7 @@ class SQLAlchemyAgentRunRepository(IAgentRunRepository):
     return _run_row_to_entity(row, snapshots)
 
   async def find_by_experiment_id(self, experiment_id: str) -> list[AgentRun]:
-    exp_id = _uuid.UUID(experiment_id)
+    exp_id = str(experiment_id)
     rows = (
       (
         await self._session.execute(
@@ -142,7 +137,7 @@ class SQLAlchemyAgentRunRepository(IAgentRunRepository):
     return result
 
   async def append_snapshot(self, agent_run_id: str, snapshot: EventSnapshot) -> None:
-    run_id = _uuid.UUID(agent_run_id)
+    run_id = str(agent_run_id)
     row = models.EventSnapshot(
       agent_run_id=run_id,
       step=snapshot.step,

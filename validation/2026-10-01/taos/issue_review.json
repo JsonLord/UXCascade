@@ -1,0 +1,7 @@
+[
+  {
+    "issue_id": "none_generated",
+    "status": "FALSE_POSITIVE",
+    "rationale": "No usability issues generated due to missing LLM API credentials on Hugging Face Space."
+  }
+]

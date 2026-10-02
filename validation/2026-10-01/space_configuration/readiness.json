@@ -1,0 +1,11 @@
+{
+  "status": "not_ready",
+  "database": true,
+  "storage": true,
+  "llm": {
+    "ready": false,
+    "code": "MISCONFIGURED",
+    "reason": "OPENAI_BASE_URL is not configured",
+    "provider": "openai-compatible"
+  }
+}

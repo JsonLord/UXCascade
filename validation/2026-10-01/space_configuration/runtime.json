@@ -1,0 +1,23 @@
+{
+  "llm": {
+    "provider": "openai-compatible",
+    "base_url": "",
+    "models": {
+      "simulation": "gpt-4o",
+      "tagging": "gpt-4o",
+      "issue_detection": "gpt-4o",
+      "editor": "gpt-4o",
+      "preview": "gpt-4o"
+    }
+  },
+  "browser": {
+    "engine": "chromium",
+    "headless": true,
+    "page_ready_timeout": 8.0
+  },
+  "concurrency": {
+    "max_simulation_concurrency": 1
+  },
+  "database": "sqlite",
+  "storage": "local"
+}

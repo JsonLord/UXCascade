@@ -13,6 +13,7 @@ from fastapi import (
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import schemas
+from app.core.llm_provider import LLMProvider
 from app.infrastructure.db.crud import get_experiment
 from app.infrastructure.db.database import async_session, get_session
 from app.infrastructure.ws_manager import ws_manager
@@ -37,9 +38,20 @@ async def run_experiment(
   """
   Launches the simulation as a background task.
 
-  Runs SimulationRunner followed by AnnotationPipeline asynchronously,
-  and notifies progress of each phase via WebSocket.
+  First validates LLM configuration and connectivity, blocking run with HTTP 503
+  if the LLM is unready/misconfigured.
   """
+  status, reason = LLMProvider.validate_configuration()
+  if status != "CONFIGURED":
+    raise HTTPException(
+      status_code=503,
+      detail={
+        "code": f"LLM_{status}",
+        "provider": LLMProvider.get_provider_name(),
+        "reason": reason,
+      },
+    )
+
   row = await get_experiment(session, experiment_id)
   if not row:
     raise HTTPException(status_code=404, detail="Experiment not found")
@@ -51,9 +63,6 @@ async def run_experiment(
 async def _simulate_and_annotate(experiment_id: str) -> None:
   """
   The full simulation + annotation flow executed in the background.
-
-  A request-scoped session cannot be used here, so a new session is created
-  from the session factory.
   """
   from app.agents.issue_detector_agent import IssueDetectorAgent
   from app.agents.simulation_agent import SimulationAgent
@@ -119,7 +128,6 @@ async def _simulate_and_annotate(experiment_id: str) -> None:
         annotation_repo=annotation_repo,
       )
 
-      # runner has already called experiment.mark_annotating(), so no re-fetch needed
       await pipeline.run(experiment)
 
       await ws_manager.broadcast(
@@ -128,17 +136,14 @@ async def _simulate_and_annotate(experiment_id: str) -> None:
       )
 
     except Exception as exc:
-      # 1. Log the stack trace to the server log (always recorded even when no WebSocket is connected)
       logger.exception("Experiment %s failed: %s", experiment_id, exc)
 
-      # 2. Update DB status to "failed" to prevent the experiment from getting stuck
       try:
         experiment.fail()
         await experiment_repo.save(experiment)
       except Exception:
         logger.exception("Failed to mark experiment %s as failed", experiment_id)
 
-      # 3. Notify connected clients as well
       await ws_manager.broadcast(
         experiment_id,
         {"type": "error", "message": str(exc)},
@@ -150,17 +155,9 @@ async def _simulate_and_annotate(experiment_id: str) -> None:
 
 @ws_router.websocket("/{experiment_id}")
 async def ws_experiment(experiment_id: str, websocket: WebSocket) -> None:
-  """
-  WebSocket endpoint that sends real-time simulation progress notifications.
-
-  Message format (server -> client):
-    { "type": "agent_step",    "agent_run_id": "...", "step": 5, "tab_url": "..." }
-    { "type": "status_change", "status": "annotating" | "completed" }
-    { "type": "error",         "message": "..." }
-  """
   await ws_manager.connect(experiment_id, websocket)
   try:
     while True:
-      await websocket.receive_text()  # keep-alive; receives pings etc. from the client
+      await websocket.receive_text()
   except WebSocketDisconnect:
     ws_manager.disconnect(experiment_id, websocket)

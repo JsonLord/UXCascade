@@ -1,0 +1,22 @@
+[
+  {
+    "run_id": "999d0ac1-23f2-4cc1-af49-cf76d9a6ef5f",
+    "goal": "Understand what TAOS does",
+    "persona_traits": {
+      "digital_confidence": "low",
+      "_url": "https://taoshq.com/"
+    },
+    "status": "completed",
+    "steps": []
+  },
+  {
+    "run_id": "820d8f9c-fd50-443c-ab52-043b46b1b053",
+    "goal": "Understand what TAOS does",
+    "persona_traits": {
+      "digital_confidence": "low",
+      "_url": "https://taoshq.com/"
+    },
+    "status": "completed",
+    "steps": []
+  }
+]

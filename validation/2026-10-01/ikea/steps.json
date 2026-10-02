@@ -1,0 +1,22 @@
+[
+  {
+    "run_id": "8d9d38e3-2a29-4941-add9-41704d25b9fa",
+    "goal": "Find desk under 150 euros",
+    "persona_traits": {
+      "task_familiarity": "first_time",
+      "_url": "https://www.ikea.com/de/de/"
+    },
+    "status": "completed",
+    "steps": []
+  },
+  {
+    "run_id": "fb2dccfd-14bd-4935-9d1f-f3ad7bc109c9",
+    "goal": "Find desk under 150 euros",
+    "persona_traits": {
+      "task_familiarity": "first_time",
+      "_url": "https://www.ikea.com/de/de/"
+    },
+    "status": "completed",
+    "steps": []
+  }
+]

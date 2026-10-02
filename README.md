@@ -1,3 +1,13 @@
+---
+title: UXCascade
+emoji: 🧪
+colorFrom: blue
+colorTo: indigo
+sdk: docker
+app_port: 7860
+pinned: false
+---
+
 # UXCascade
 
 **UXCascade: Scalable Usability Testing with Simulated User Agents**
@@ -5,7 +15,7 @@
 [![arXiv](https://img.shields.io/badge/arXiv-2601.15777-b31b1b.svg)](https://arxiv.org/abs/2601.15777)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-This repository is an unofficial implementation of the system described in:
+This repository is an implementation of the system described in:
 
 > **UXCascade: Scalable Usability Testing with Simulated User Agents**
 > Steffen Holter, Eunyee Koh, Mustafa Doga Dogan, Gromit Yeuk-Yin Chan
@@ -102,17 +112,39 @@ After applying a patch, the Preview Agent re-runs the affected simulation step a
 │     Refinement Phase        │
 │  Editor Agent → DOM patches │
 │  Preview Agent → re-sim     │
-└─────────────────────────────┘
+└────────────┬────────────────┘
 ```
 
 The frontend is built with **React 19 + TypeScript + Vite**, and the backend with **FastAPI + Python 3.13**.
-Storage uses **PostgreSQL** for structured data and **MinIO** for screenshots.
+Storage uses **PostgreSQL** for structured data and **MinIO / S3-compatible storage** for screenshots.
 
 ---
 
-## Quick Start (Docker)
+## Deployment to Hugging Face Docker Spaces
 
-The easiest way to get everything running:
+UXCascade can be deployed as a single application container on Hugging Face Docker Spaces listening on port `7860`.
+
+### Required Environment Variables & Secrets
+
+In your Hugging Face Space settings under **Variables** and **Secrets**, set the following:
+
+#### Secrets (Sensitive Credentials)
+- `DATABASE_URL`: PostgreSQL connection string (e.g. `postgresql://user:password@host:5432/dbname`)
+- `ANTHROPIC_API_KEY`: API key for Anthropic Claude LLM models
+- `MINIO_SECRET_KEY`: Access key secret for S3/MinIO storage
+
+#### Variables (Public Configuration)
+- `MINIO_ENDPOINT`: S3/MinIO endpoint URL (e.g. `https://s3.amazonaws.com` or custom MinIO endpoint)
+- `MINIO_ACCESS_KEY`: S3/MinIO access key ID
+- `MINIO_BUCKET`: Storage bucket name (default: `screenshots`)
+- `MINIO_PUBLIC_URL`: Public URL accessible by browser clients to view stored screenshots
+- `PORT`: Application port (default: `7860`)
+
+---
+
+## Quick Start (Local Docker Compose)
+
+The easiest way to get everything running locally:
 
 ```bash
 git clone https://github.com/your-org/UXCascade.git

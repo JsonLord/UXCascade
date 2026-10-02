@@ -9,7 +9,11 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 
 
 def _normalize_db_url(url: str) -> str:
-  """Normalizes the URL to the asyncpg driver prefix."""
+  """Normalizes the URL to the asyncpg or sqlite driver prefix."""
+  if url.startswith("sqlite+aiosqlite://"):
+    return url
+  if url.startswith("sqlite://"):
+    return url.replace("sqlite://", "sqlite+aiosqlite://", 1)
   if url.startswith("postgresql+asyncpg://"):
     return url
   if url.startswith("postgresql://"):
@@ -24,9 +28,6 @@ class Settings(BaseSettings):
   ENV: str = "dev"
 
   # ── Database ─────────────────────────────────────────────────────────────
-  # DATABASE_URL takes precedence if set; otherwise constructed from DB_* fields.
-  # Docker: DATABASE_URL=postgresql://postgres:postgres@db:5432/uxcascade
-  # Local: specify DB_HOST etc. individually in .env
   DATABASE_URL: str = ""
   DB_HOST: str = "localhost"
   DB_PORT: int = 5432
@@ -34,19 +35,27 @@ class Settings(BaseSettings):
   DB_PASSWORD: str = "postgres"
   DB_NAME: str = "uxcascade"
 
-  # ── Anthropic ─────────────────────────────────────────────────────────────
+  # ── LLM Configuration ─────────────────────────────────────────────────────
+  # LLM_PROVIDER: "openai", "anthropic", or "auto"
+  LLM_PROVIDER: str = Field(default="openai")
   ANTHROPIC_API_KEY: str = Field(default="")
+  OPENAI_API_KEY: str = Field(default="")
+  OPENAI_BASE_URL: str = Field(default="")
+  OPENAI_MODEL_NAME: str = Field(default="gpt-4o")
 
-  # ── MinIO / Object Storage ────────────────────────────────────────────────
+  # ── Evidence / Screenshot Storage ─────────────────────────────────────────
+  STORAGE_BACKEND: str = "local"  # "local" or "s3"
   MINIO_ENDPOINT: str = "http://localhost:9000"
   MINIO_ACCESS_KEY: str = "minioadmin"
   MINIO_SECRET_KEY: str = "minioadmin"
   MINIO_BUCKET: str = "screenshots"
-  # Public URL that the browser can reach (differs from internal endpoint in Docker)
   MINIO_PUBLIC_URL: str = "http://localhost:9000"
 
-  # ── Browser-use ───────────────────────────────────────────────────────────
+  # ── Concurrency & Browser-use ─────────────────────────────────────────────
+  SIMULATION_MAX_CONCURRENCY: int = 1
   BROWSER_HEADLESS: bool = True
+  BROWSER_PAGE_READY_TIMEOUT: float = 8.0
+  ANONYMIZED_TELEMETRY: bool = False
 
   model_config = SettingsConfigDict(
     env_file=f"{_HERE}/../../.env",
@@ -59,10 +68,7 @@ class Settings(BaseSettings):
     if self.DATABASE_URL:
       self.DATABASE_URL = _normalize_db_url(self.DATABASE_URL)
     else:
-      self.DATABASE_URL = (
-        f"postgresql+asyncpg://{self.DB_USER}:{self.DB_PASSWORD}"
-        f"@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
-      )
+      self.DATABASE_URL = "sqlite+aiosqlite:////app/uxcascade.db"
     return self
 
 

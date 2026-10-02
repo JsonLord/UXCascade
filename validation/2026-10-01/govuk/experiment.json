@@ -1,0 +1,21 @@
+{
+  "id": "7eea050d-6be8-44f1-9464-fdef9b690df4",
+  "name": "Validation - govuk",
+  "target_url": "https://www.gov.uk/",
+  "status": "completed",
+  "agent_count": 2,
+  "traits": [
+    {
+      "name": "Digital confidence",
+      "key": "digital_confidence",
+      "values": [
+        "low"
+      ]
+    }
+  ],
+  "goals": [
+    "Find passport renewal cost"
+  ],
+  "created_at": "2026-10-01T21:57:24",
+  "updated_at": "2026-10-01T21:57:38"
+}

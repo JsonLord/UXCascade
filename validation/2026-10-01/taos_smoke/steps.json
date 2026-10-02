@@ -1,0 +1,22 @@
+[
+  {
+    "run_id": "8ebe999b-2e8f-46f0-adc9-646603e69e17",
+    "goal": "Understand what TAOS does and who it is intended for",
+    "persona_traits": {
+      "digital_confidence": "low",
+      "_url": "https://taoshq.com/"
+    },
+    "status": "completed",
+    "steps": []
+  },
+  {
+    "run_id": "7389e72d-34a6-4605-befa-5ff275965ab8",
+    "goal": "Understand what TAOS does and who it is intended for",
+    "persona_traits": {
+      "digital_confidence": "low",
+      "_url": "https://taoshq.com/"
+    },
+    "status": "completed",
+    "steps": []
+  }
+]

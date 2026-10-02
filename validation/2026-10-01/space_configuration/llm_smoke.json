@@ -1,0 +1,5 @@
+{
+  "status": "blocked",
+  "code": "LLM_MISCONFIGURED",
+  "message": "POST /run blocked with 503 Service Unavailable before launching Chromium"
+}

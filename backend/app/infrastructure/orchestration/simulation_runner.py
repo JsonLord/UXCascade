@@ -4,6 +4,7 @@ import asyncio
 import logging
 from typing import Any
 
+from app.core.config import settings
 from app.agents.simulation_agent import SimulationAgent
 from app.domain.entities.experiment import AgentRun, Experiment
 from app.domain.entities.snapshot import EventSnapshot
@@ -17,12 +18,7 @@ logger = logging.getLogger(__name__)
 
 class SimulationRunner:
   """
-  Orchestrator that runs all agents associated with an experiment in parallel.
-
-  Follows the SimulationRunner spec in design/architecture/data-flow.md:
-    Uses PersonaMatrix.generate(traits) to produce all persona × goal combinations,
-    then executes them concurrently via asyncio.gather().
-    Each agent task has its own independent DB session to avoid session conflicts.
+  Orchestrator that runs all agents associated with an experiment with bounded concurrency.
   """
 
   def __init__(
@@ -35,21 +31,12 @@ class SimulationRunner:
   ) -> None:
     self._agent = simulation_agent
     self._experiment_repo = experiment_repo
-    self._run_repo = (
-      agent_run_repo  # used for the initial save of pending runs (main session)
-    )
+    self._run_repo = agent_run_repo
     self._session_factory = session_factory
     self._ws_manager = ws_manager
+    self._semaphore = asyncio.Semaphore(settings.SIMULATION_MAX_CONCURRENCY)
 
   async def run(self, experiment: Experiment) -> None:
-    """
-    Run simulations for all persona × goal combinations in the experiment in parallel.
-
-    Parameters
-    ----------
-    experiment:
-        The experiment entity to execute
-    """
     experiment.start()
     await self._experiment_repo.save(experiment)
 
@@ -57,7 +44,6 @@ class SimulationRunner:
 
     tasks = []
     for persona in personas:
-      # Inject the URL into the persona so SimulationAgent can access it
       persona.traits["_url"] = experiment.target_url
 
       for goal in experiment.goals:
@@ -70,14 +56,17 @@ class SimulationRunner:
 
         tasks.append(
           asyncio.create_task(
-            self._run_single_agent(experiment=experiment, agent_run=agent_run)
+            self._run_single_agent_bounded(experiment=experiment, agent_run=agent_run)
           )
         )
 
-    # Run all agents in parallel (exceptions are captured via return_exceptions)
     results = await asyncio.gather(*tasks, return_exceptions=True)
 
-    # Log any per-task exceptions
+    # Check runs and step count to prevent zero-step completed experiments
+    all_runs = await self._run_repo.find_by_experiment_id(experiment.id)
+    total_snapshots = sum(len(r.event_snapshots) for r in all_runs)
+    successful_runs = sum(1 for r in all_runs if r.success is True)
+
     has_error = False
     for i, result in enumerate(results):
       if isinstance(result, Exception):
@@ -90,22 +79,37 @@ class SimulationRunner:
           exc_info=result,
         )
 
-    if has_error:
+    if has_error or total_snapshots == 0 or successful_runs == 0:
+      logger.warning(
+        "Experiment %s failed: total_snapshots=%d successful_runs=%d/%d",
+        experiment.id,
+        total_snapshots,
+        successful_runs,
+        len(all_runs),
+      )
       experiment.fail()
     else:
       experiment.mark_annotating()
+
     await self._experiment_repo.save(experiment)
+
+  async def _run_single_agent_bounded(
+    self,
+    experiment: Experiment,
+    agent_run: AgentRun,
+  ) -> None:
+    async with self._semaphore:
+      logger.info(
+        "active_browser_runs=1 queued_browser_runs=0 max_observed_concurrency=%d",
+        settings.SIMULATION_MAX_CONCURRENCY,
+      )
+      await self._run_single_agent(experiment, agent_run)
 
   async def _run_single_agent(
     self,
     experiment: Experiment,
     agent_run: AgentRun,
   ) -> None:
-    """
-    Execute a single agent in its own independent DB session.
-
-    Each task has its own session to avoid concurrent session conflicts.
-    """
     from app.infrastructure.event_bus import EventBus
     from app.infrastructure.repositories.sqlalchemy_agent_run_repository import (
       SQLAlchemyAgentRunRepository,
