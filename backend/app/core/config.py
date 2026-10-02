@@ -35,7 +35,9 @@ class Settings(BaseSettings):
   DB_PASSWORD: str = "postgres"
   DB_NAME: str = "uxcascade"
 
-  # ── LLM Configuration (Supports Anthropic and OpenAI-Compatible APIs) ─────
+  # ── LLM Configuration ─────────────────────────────────────────────────────
+  # LLM_PROVIDER: "openai", "anthropic", or "auto"
+  LLM_PROVIDER: str = Field(default="openai")
   ANTHROPIC_API_KEY: str = Field(default="")
   OPENAI_API_KEY: str = Field(default="")
   OPENAI_BASE_URL: str = Field(default="")
@@ -52,6 +54,8 @@ class Settings(BaseSettings):
   # ── Concurrency & Browser-use ─────────────────────────────────────────────
   SIMULATION_MAX_CONCURRENCY: int = 1
   BROWSER_HEADLESS: bool = True
+  BROWSER_PAGE_READY_TIMEOUT: float = 8.0
+  ANONYMIZED_TELEMETRY: bool = False
 
   model_config = SettingsConfigDict(
     env_file=f"{_HERE}/../../.env",

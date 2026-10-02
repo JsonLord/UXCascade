@@ -13,13 +13,6 @@ from app.domain.services.goal_aggregator import GoalAggregator
 class AnnotationPipeline:
   """
   Pipeline that batch-processes annotations after all simulations have completed.
-
-  Follows the AnnotationPipeline spec in design/architecture/data-flow.md:
-    1. Runs AnnotationService.annotate_run() for each AgentRun
-    2. Generates and saves GoalSummary / TraitDistribution via GoalAggregator
-    3. Updates the experiment status to "completed"
-
-  Concurrency is limited via MAX_CONCURRENT to avoid hitting LLM rate limits.
   """
 
   MAX_CONCURRENT: int = 5
@@ -39,17 +32,12 @@ class AnnotationPipeline:
     self._annotation_repo = annotation_repo
 
   async def run(self, experiment: Experiment) -> None:
-    """
-    Annotate all AgentRuns associated with the experiment and generate GoalSummaries.
+    # Do not transition or process if simulation previously marked experiment as failed
+    if experiment.status.value == "failed":
+      return
 
-    Parameters
-    ----------
-    experiment:
-        The experiment entity to annotate (status must be 'annotating')
-    """
     runs = await self._run_repo.find_by_experiment_id(experiment.id)
 
-    # Limit concurrent annotation count via semaphore
     sem = asyncio.Semaphore(self.MAX_CONCURRENT)
 
     async def _annotate_with_limit(run) -> None:
@@ -58,7 +46,6 @@ class AnnotationPipeline:
 
     await asyncio.gather(*[_annotate_with_limit(r) for r in runs])
 
-    # Aggregate and save GoalSummaries
     await self._aggregate_and_save(experiment, runs)
 
     experiment.complete()
@@ -69,8 +56,6 @@ class AnnotationPipeline:
     experiment: Experiment,
     runs,
   ) -> None:
-    """Generate and save GoalSummary / TraitDistribution objects via GoalAggregator."""
-    # Fetch annotations for all AgentRuns
     annotations_map = {}
     for run in runs:
       annotations = await self._annotation_repo.find_annotations_by_run(run.id)

@@ -3,6 +3,7 @@
 Reusable Live Validation Collector Script for UXCascade.
 Executes experiments against live deployment, collects machine-readable evidence,
 polls until terminal state, and verifies EventSnapshots and analysis output.
+Exits non-zero (INVALID_EVIDENCE) if total_steps == 0 or if /ready is unready.
 """
 
 import sys
@@ -48,13 +49,25 @@ def run_validation(site_name: str, target_url: str, traits: list[dict], goals: l
     print(f" Starting Live Validation for {site_name} ({target_url})")
     print(f"========================================================")
 
-    # 1. Health & Runtime Check
+    # 1. Health Check
     health = http_get("/health")
     print(f"Health Check: {health}")
+
+    # 2. Readiness Check
+    try:
+        ready = http_get("/ready")
+        print(f"Readiness Check: {json.dumps(ready, indent=2)}")
+        if isinstance(ready, dict) and ready.get("status") != "ready":
+            print(f"ERROR: Space is not ready! Reason: {ready}")
+            return False
+    except Exception as e:
+        print(f"ERROR: /ready check failed: {e}")
+        return False
+
     runtime = http_get("/api/runtime")
     print(f"Runtime Diagnostics: {json.dumps(runtime, indent=2)}")
 
-    # 2. Create Experiment
+    # 3. Create Experiment
     exp_payload = {
         "name": f"Validation - {site_name}",
         "target_url": target_url,
@@ -65,11 +78,11 @@ def run_validation(site_name: str, target_url: str, traits: list[dict], goals: l
     exp_id = exp["id"]
     print(f"Created Experiment ID: {exp_id}")
 
-    # 3. Trigger Run
+    # 4. Trigger Run
     run_res = http_post(f"/api/experiments/{exp_id}/run", {})
     print(f"Triggered Run: {run_res}")
 
-    # 4. Poll Status
+    # 5. Poll Status
     status = "running"
     start_time = time.time()
     max_wait = 600  # 10 minutes timeout
@@ -84,7 +97,7 @@ def run_validation(site_name: str, target_url: str, traits: list[dict], goals: l
         print(f"ERROR: Experiment timed out after {max_wait}s!")
         return False
 
-    # 5. Collect Evidence Data
+    # 6. Collect Evidence Data
     print(f"\nCollecting evidence artifacts...")
     goals_data = http_get(f"/api/experiments/{exp_id}/goals")
     issues_data = http_get(f"/api/experiments/{exp_id}/issues")
@@ -108,14 +121,14 @@ def run_validation(site_name: str, target_url: str, traits: list[dict], goals: l
     with open(out_dir / "steps.json", "w") as f:
         json.dump(steps_data, f, indent=2)
 
-    # Calculate metrics
     total_steps = sum(len(run.get("steps", [])) for run in steps_data)
     print(f"Validation Artifacts Saved to {out_dir}")
     print(f"Total Runs: {len(steps_data)} | Total Recorded Steps: {total_steps} | Final Status: {status}")
 
-    # Evidence Assertion
-    if total_steps == 0 and status == "completed":
-        print("WARNING: Run completed with 0 steps recorded.")
+    # Evidence Assertion: Fail if 0 steps recorded
+    if total_steps == 0:
+        print("ERROR: INVALID_EVIDENCE - Run completed with 0 steps recorded.")
+        return False
 
     return True
 

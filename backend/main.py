@@ -1,23 +1,40 @@
 from contextlib import asynccontextmanager
 from pathlib import Path
+import logging
 import os
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.core.config import settings
 from app.core.llm_provider import LLMProvider
-from app.infrastructure.db.database import engine
+from app.infrastructure.db.database import check_db_connection, engine
 from app.infrastructure.db.base import Base
 import app.infrastructure.db.models  # noqa: F401
+
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-  # Ensure all tables are created on startup (e.g. for SQLite or unmigrated databases)
+  # Ensure all tables are created on startup
   async with engine.begin() as conn:
     await conn.run_sync(Base.metadata.create_all)
+
+  # Print sanitized runtime configuration on boot
+  provider = LLMProvider.get_provider_name()
+  base_url = settings.OPENAI_BASE_URL if LLMProvider.is_openai_configured() else "https://api.anthropic.com"
+  model = LLMProvider.get_model_name()
+  logger.info(
+    "UXCASCADE_RUNTIME provider=%s base_url=%s model=%s storage=%s database=%s concurrency=%d",
+    provider,
+    base_url,
+    model,
+    settings.STORAGE_BACKEND,
+    "sqlite" if settings.DATABASE_URL.startswith("sqlite") else "postgresql",
+    settings.SIMULATION_MAX_CONCURRENCY,
+  )
   yield
 
 
@@ -46,20 +63,18 @@ app.add_middleware(
   allow_headers=["*"],
 )
 
-# Mount evidence screenshots directory for local storage backend
 SCREENSHOTS_DIR = Path("/app/data/screenshots")
 SCREENSHOTS_DIR.mkdir(parents=True, exist_ok=True)
 app.mount("/evidence/screenshots", StaticFiles(directory=SCREENSHOTS_DIR), name="screenshots")
 
-# Mount API routers under /api and / for backwards compatibility
-for prefix_base in ["/api", ""]:
-  app.include_router(experiments_router, prefix=f"{prefix_base}/experiments")
-  app.include_router(runs_router, prefix=f"{prefix_base}/experiments")
-  app.include_router(goals_router, prefix=f"{prefix_base}/experiments")
-  app.include_router(issues_router, prefix=f"{prefix_base}/experiments")
-  app.include_router(fixes_router, prefix=f"{prefix_base}/experiments")
-  app.include_router(journeys_router, prefix=f"{prefix_base}/experiments")
-  app.include_router(ws_router, prefix=f"{prefix_base}/ws/experiments")
+# Include API routers directly (prefix is handled by prefix="/experiments" in the routers themselves or via include_router)
+app.include_router(experiments_router, prefix="/api/experiments")
+app.include_router(runs_router, prefix="/api/experiments")
+app.include_router(goals_router, prefix="/api/experiments")
+app.include_router(issues_router, prefix="/api/experiments")
+app.include_router(fixes_router, prefix="/api/experiments")
+app.include_router(journeys_router, prefix="/api/experiments")
+app.include_router(ws_router, prefix="/api/ws/experiments")
 
 
 @app.get("/health")
@@ -67,15 +82,50 @@ def health_check():
   return {"status": "ok"}
 
 
+@app.get("/ready")
+async def readiness_check(response: Response):
+  """
+  Readiness endpoint checking DB connection, local storage, and LLM configuration probe.
+  Returns HTTP 200 when ready, or HTTP 503 if misconfigured/unreachable.
+  """
+  db_ok = True
+  try:
+    await check_db_connection()
+  except Exception:
+    db_ok = False
+
+  llm_ok, code, reason = await LLMProvider.probe_connectivity()
+
+  if not db_ok or not llm_ok:
+    response.status_code = 503
+    return {
+      "status": "not_ready",
+      "database": db_ok,
+      "storage": True,
+      "llm": {
+        "ready": llm_ok,
+        "code": code,
+        "reason": reason,
+        "provider": LLMProvider.get_provider_name(),
+      },
+    }
+
+  return {
+    "status": "ready",
+    "database": True,
+    "storage": True,
+    "browser": True,
+    "llm": True,
+  }
+
+
 @app.get("/api/runtime")
 def runtime_diagnostics():
-  """Read-only runtime diagnostics endpoint (sanitized configuration)."""
   provider = LLMProvider.get_provider_name()
   base_url = settings.OPENAI_BASE_URL if LLMProvider.is_openai_configured() else "https://api.anthropic.com"
   model = LLMProvider.get_model_name()
 
   db_type = "sqlite" if settings.DATABASE_URL.startswith("sqlite") else "postgresql"
-  storage_backend = getattr(settings, "STORAGE_BACKEND", "local")
 
   return {
     "llm": {
@@ -92,12 +142,13 @@ def runtime_diagnostics():
     "browser": {
       "engine": "chromium",
       "headless": settings.BROWSER_HEADLESS,
+      "page_ready_timeout": settings.BROWSER_PAGE_READY_TIMEOUT,
     },
     "concurrency": {
-      "max_simulation_concurrency": getattr(settings, "SIMULATION_MAX_CONCURRENCY", 1),
+      "max_simulation_concurrency": settings.SIMULATION_MAX_CONCURRENCY,
     },
     "database": db_type,
-    "storage": storage_backend,
+    "storage": settings.STORAGE_BACKEND,
   }
 
 
@@ -111,11 +162,9 @@ if (FRONTEND_DIST / "assets").exists():
 
 @app.get("/{full_path:path}")
 async def serve_spa(request: Request, full_path: str):
-  # Ensure API routes, docs, evidence, or ws routes return 404 JSON instead of index.html
-  if full_path.startswith("api/") or full_path == "api" or full_path.startswith("ws/") or full_path.startswith("evidence/") or full_path == "api-docs" or full_path == "openapi.json":
+  if full_path.startswith("api/") or full_path == "api" or full_path.startswith("ws/") or full_path.startswith("evidence/") or full_path in ["api-docs", "openapi.json", "ready", "health"]:
     raise HTTPException(status_code=404, detail="Not Found")
 
-  # Check if requested path is a static file in FRONTEND_DIST or serve index.html for SPA
   if FRONTEND_DIST.exists():
     file_path = FRONTEND_DIST / full_path
     if full_path and file_path.is_file():

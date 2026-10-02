@@ -2,24 +2,28 @@ from __future__ import annotations
 
 import json
 import tempfile
+import os
 from collections.abc import Awaitable, Callable
 from pathlib import Path
 
 from browser_use import Agent as BrowserUseAgent
+from browser_use.browser.config import BrowserConfig
 from browser_use.agent.views import AgentOutput
 from browser_use.browser.views import BrowserStateSummary
 
 from app.agents.ports import BrowserPort, StepData
+from app.core.config import settings
 from app.core.llm_provider import LLMProvider
 from app.domain.value_objects.persona import Persona
 from app.infrastructure.storage_service import get_storage_service
 
+os.environ["ANONYMIZED_TELEMETRY"] = "false"
+
 
 class BrowserUseAdapter(BrowserPort):
   """
-  Concrete implementation of BrowserPort using the browser-use framework.
-
-  Delegates LLM creation to central LLMProvider.
+  Concrete implementation of BrowserPort using browser-use with clean browser profile
+  and persona behavior prompt override.
   """
 
   _SIMULATION_TEMPERATURE: float = 1.0
@@ -27,6 +31,12 @@ class BrowserUseAdapter(BrowserPort):
 
   def _make_llm(self, temperature: float, system_prompt: str, stage: str = "simulation"):
     return LLMProvider.make_browser_llm(temperature=temperature, stage=stage)
+
+  def _make_browser_config(self) -> BrowserConfig:
+    return BrowserConfig(
+      headless=settings.BROWSER_HEADLESS,
+      extra_chromium_args=["--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu"],
+    )
 
   async def run_simulation(
     self,
@@ -37,6 +47,7 @@ class BrowserUseAdapter(BrowserPort):
     on_step: Callable[[StepData], Awaitable[None]],
   ) -> bool:
     llm = self._make_llm(self._SIMULATION_TEMPERATURE, behavior_prompt, stage="simulation")
+    browser_config = self._make_browser_config()
 
     pending: dict = {}
     step_counter: list[int] = [0]
@@ -107,6 +118,7 @@ class BrowserUseAdapter(BrowserPort):
     agent = BrowserUseAgent(
       task=task,
       llm=llm,
+      browser_config=browser_config,
       override_system_message=behavior_prompt,
       register_new_step_callback=_on_new_step,
     )
@@ -118,7 +130,6 @@ class BrowserUseAdapter(BrowserPort):
       )
       return result.is_successful() is True
     finally:
-      # Ensure browser session / pages are cleaned up
       try:
         if hasattr(agent, "browser_session") and agent.browser_session:
           await agent.browser_session.close()
@@ -133,6 +144,7 @@ class BrowserUseAdapter(BrowserPort):
     behavior_prompt: str,
   ) -> StepData:
     llm = self._make_llm(self._PREVIEW_TEMPERATURE, behavior_prompt, stage="preview")
+    browser_config = self._make_browser_config()
 
     with tempfile.NamedTemporaryFile(
       suffix=".html", mode="w", encoding="utf-8", delete=False
@@ -191,6 +203,7 @@ class BrowserUseAdapter(BrowserPort):
     agent = BrowserUseAgent(
       task=f"Navigate to {file_url} and observe the page.",
       llm=llm,
+      browser_config=browser_config,
       override_system_message=behavior_prompt,
       register_new_step_callback=_on_new_step,
       register_should_stop_callback=_should_stop,

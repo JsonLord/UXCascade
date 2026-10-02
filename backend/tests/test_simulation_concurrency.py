@@ -6,7 +6,9 @@ import pytest
 from app.core.config import settings
 from app.infrastructure.orchestration.simulation_runner import SimulationRunner
 from app.domain.entities.experiment import Experiment, ExperimentStatus
+from app.domain.entities.snapshot import EventSnapshot
 from app.domain.value_objects.persona import TraitConfig
+from app.domain.value_objects.action import Action, TabMetadata
 
 
 def test_simulation_concurrency_bounded():
@@ -23,6 +25,22 @@ def test_simulation_concurrency_bounded():
         active_count += 1
         if active_count > max_active:
           max_active = active_count
+
+      # Emit mock snapshot
+      snap = EventSnapshot(
+        agent_run_id=agent_run.id,
+        step=1,
+        raw_html="<html></html>",
+        screenshot="",
+        tab_metadata=TabMetadata(url="https://example.com", title="Example"),
+        reasoning="Exploring",
+        prompt="",
+        action=Action(type="navigate", value="https://example.com"),
+        action_result="success",
+        errors=[],
+      )
+      await on_snapshot(snap)
+
       await asyncio.sleep(0.05)
       async with lock:
         active_count -= 1
@@ -32,7 +50,14 @@ def test_simulation_concurrency_bounded():
     sim_agent.run = AsyncMock(side_effect=mock_run_agent)
 
     exp_repo = AsyncMock()
+
+    # Mock run_repo to return runs with event_snapshots
+    mock_run = MagicMock()
+    mock_run.success = True
+    mock_run.event_snapshots = [1]
     run_repo = AsyncMock()
+    run_repo.find_by_experiment_id.return_value = [mock_run]
+
     session_factory = MagicMock()
     session_factory.return_value.__aenter__ = AsyncMock()
     session_factory.return_value.__aexit__ = AsyncMock()

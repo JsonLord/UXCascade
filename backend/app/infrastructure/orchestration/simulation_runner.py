@@ -37,9 +37,6 @@ class SimulationRunner:
     self._semaphore = asyncio.Semaphore(settings.SIMULATION_MAX_CONCURRENCY)
 
   async def run(self, experiment: Experiment) -> None:
-    """
-    Run simulations for all persona × goal combinations in the experiment with bounded concurrency.
-    """
     experiment.start()
     await self._experiment_repo.save(experiment)
 
@@ -65,6 +62,11 @@ class SimulationRunner:
 
     results = await asyncio.gather(*tasks, return_exceptions=True)
 
+    # Check runs and step count to prevent zero-step completed experiments
+    all_runs = await self._run_repo.find_by_experiment_id(experiment.id)
+    total_snapshots = sum(len(r.event_snapshots) for r in all_runs)
+    successful_runs = sum(1 for r in all_runs if r.success is True)
+
     has_error = False
     for i, result in enumerate(results):
       if isinstance(result, Exception):
@@ -77,10 +79,18 @@ class SimulationRunner:
           exc_info=result,
         )
 
-    if has_error:
+    if has_error or total_snapshots == 0 or successful_runs == 0:
+      logger.warning(
+        "Experiment %s failed: total_snapshots=%d successful_runs=%d/%d",
+        experiment.id,
+        total_snapshots,
+        successful_runs,
+        len(all_runs),
+      )
       experiment.fail()
     else:
       experiment.mark_annotating()
+
     await self._experiment_repo.save(experiment)
 
   async def _run_single_agent_bounded(
